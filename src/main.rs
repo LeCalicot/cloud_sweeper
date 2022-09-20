@@ -5,7 +5,7 @@ use bevy::prelude::{App, ClearColor, Color, Msaa, NonSend, WindowDescriptor};
 use bevy::window::WindowId;
 use bevy::winit::WinitWindows;
 use bevy::DefaultPlugins;
-use bevy_game::GamePlugin;
+use cloud_sweeper::GamePlugin;
 use std::io::Cursor;
 use winit::window::Icon;
 
@@ -16,7 +16,7 @@ fn main() {
         .insert_resource(WindowDescriptor {
             width: 800.,
             height: 600.,
-            title: "Bevy game".to_string(), // ToDo
+            title: "Cloud Sweeper".to_string(), // ToDo
             canvas: Some("#bevy".to_owned()),
             ..Default::default()
         })
