@@ -2,6 +2,10 @@ use crate::loading::FontAssets;
 use crate::GameState;
 use bevy::prelude::*;
 
+#[cfg(debug_assertions)]
+const AUTOSTART_TIME_MS: u64 = 500;
+use std::time::Duration;
+
 pub struct MenuPlugin;
 
 /// This plugin is responsible for the game menu (containing only one button...)
@@ -11,7 +15,11 @@ impl Plugin for MenuPlugin {
         app.init_resource::<ButtonColors>()
             .add_system_set(SystemSet::on_enter(GameState::Menu).with_system(setup_menu))
             .add_system_set(SystemSet::on_update(GameState::Menu).with_system(click_play_button))
+            .add_system_set(SystemSet::on_exit(GameState::Menu).with_system(cleanup_menu))
             .add_system_set(SystemSet::on_exit(GameState::Menu).with_system(cleanup_menu));
+
+        #[cfg(debug_assertions)]
+        app.add_system_set(SystemSet::on_update(GameState::Menu).with_system(debug_start_auto));
     }
 }
 
@@ -86,6 +94,13 @@ fn click_play_button(
             }
         }
     }
+}
+
+#[cfg(debug_assertions)]
+fn debug_start_auto(mut game_state: ResMut<State<GameState>>, time: Res<Time>) {
+    if time.time_since_startup() > Duration::from_millis(AUTOSTART_TIME_MS) {
+        game_state.set(GameState::Playing).unwrap();
+    };
 }
 
 fn cleanup_menu(mut commands: Commands, button: Query<Entity, With<Button>>) {
