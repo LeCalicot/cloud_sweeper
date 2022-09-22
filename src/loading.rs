@@ -5,6 +5,8 @@ use bevy_kira_audio::AudioSource;
 
 pub struct LoadingPlugin;
 
+// WIP: https://github.com/NiklasEi/bevy_asset_loader#stageless-support
+
 /// This plugin loads all assets using [AssetLoader] from a third party bevy plugin
 /// Alternatively you can write the logic to load assets yourself
 /// If interested, take a look at https://bevy-cheatbook.github.io/features/assets.html
@@ -12,10 +14,10 @@ impl Plugin for LoadingPlugin {
     fn build(&self, app: &mut App) {
         app.add_loading_state(
             LoadingState::new(GameState::Loading)
+                .continue_to_state(GameState::Menu)
                 .with_collection::<FontAssets>()
                 .with_collection::<AudioAssets>()
-                .with_collection::<TextureAssets>()
-                .continue_to_state(GameState::Menu),
+                .with_collection::<TextureAssets>(),
         );
     }
 }

@@ -1,6 +1,8 @@
 use crate::loading::FontAssets;
 use crate::GameState;
 use bevy::prelude::*;
+use bevy::window::close_on_esc;
+use iyes_loopless::prelude::*;
 
 #[cfg(debug_assertions)]
 const AUTOSTART_TIME_MS: u64 = 500;
@@ -13,13 +15,17 @@ pub struct MenuPlugin;
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ButtonColors>()
-            .add_system_set(SystemSet::on_enter(GameState::Menu).with_system(setup_menu))
-            .add_system_set(SystemSet::on_update(GameState::Menu).with_system(click_play_button))
-            .add_system_set(SystemSet::on_exit(GameState::Menu).with_system(cleanup_menu))
-            .add_system_set(SystemSet::on_exit(GameState::Menu).with_system(cleanup_menu));
-
-        #[cfg(debug_assertions)]
-        app.add_system_set(SystemSet::on_update(GameState::Menu).with_system(debug_start_auto));
+            .add_enter_system(GameState::Menu, setup_menu)
+            .add_enter_system(GameState::Menu, click_play_button)
+            .add_exit_system(GameState::Menu, cleanup_menu)
+            .add_system_set(
+                ConditionSet::new()
+                    .run_in_state(GameState::Menu)
+                    .with_system(click_play_button)
+                    .with_system(close_on_esc)
+                    .with_system(debug_start_auto)
+                    .into(),
+            );
     }
 }
 
@@ -75,17 +81,15 @@ fn setup_menu(
 
 fn click_play_button(
     button_colors: Res<ButtonColors>,
-    mut state: ResMut<State<GameState>>,
     mut interaction_query: Query<
         (&Interaction, &mut UiColor),
         (Changed<Interaction>, With<Button>),
     >,
+    mut commands: Commands,
 ) {
     for (interaction, mut color) in &mut interaction_query {
         match *interaction {
-            Interaction::Clicked => {
-                state.set(GameState::Playing).unwrap();
-            }
+            Interaction::Clicked => commands.insert_resource(NextState(GameState::Playing)),
             Interaction::Hovered => {
                 *color = button_colors.hovered;
             }
@@ -97,9 +101,9 @@ fn click_play_button(
 }
 
 #[cfg(debug_assertions)]
-fn debug_start_auto(mut game_state: ResMut<State<GameState>>, time: Res<Time>) {
+fn debug_start_auto(mut commands: Commands, time: Res<Time>) {
     if time.time_since_startup() > Duration::from_millis(AUTOSTART_TIME_MS) {
-        game_state.set(GameState::Playing).unwrap();
+        commands.insert_resource(NextState(GameState::Playing));
     };
 }
 
