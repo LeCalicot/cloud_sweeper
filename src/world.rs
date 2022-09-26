@@ -20,6 +20,9 @@ pub struct Sky;
 #[derive(Component)]
 pub struct Platform;
 
+const STAGE_BL: [u32; 2] = [2, 2];
+const STAGE_UR: [u32; 2] = [7, 7];
+
 /// This plugin handles world related stuff: background, cloud movement,...
 impl Plugin for WorldPlugin {
     fn build(&self, app: &mut App) {
@@ -49,14 +52,28 @@ fn setup_world(mut commands: Commands, asset_server: Res<AssetServer>) {
     for x in 0..tilemap_size.x {
         for y in 0..tilemap_size.y {
             let tile_pos = TilePos { x, y };
+
             let tile_entity = commands
                 .spawn()
                 .insert_bundle(TileBundle {
                     position: tile_pos,
+                    texture: TileTexture(1),
                     tilemap_id: TilemapId(tilemap_entity),
                     ..Default::default()
                 })
                 .id();
+            if (STAGE_BL[0] <= x) && (x <= STAGE_UR[0]) && (STAGE_BL[1] <= y) && (y <= STAGE_UR[1])
+            {
+                commands
+                    .entity(tile_entity)
+                    .insert(Platform)
+                    .insert(TileTexture(0));
+            } else {
+                commands
+                    .entity(tile_entity)
+                    .insert(Sky)
+                    .insert(TileTexture(1));
+            }
             tile_storage.set(&tile_pos, Some(tile_entity));
         }
     }
