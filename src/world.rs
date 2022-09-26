@@ -26,7 +26,7 @@ const STAGE_UR: [u32; 2] = [7, 7];
 /// This plugin handles world related stuff: background, cloud movement,...
 impl Plugin for WorldPlugin {
     fn build(&self, app: &mut App) {
-        app.add_startup_system(setup_world)
+        app.add_enter_system(GameState::Playing, setup_world)
             // .add_enter_system(GameState::Playing, spawn_world)
             .add_system_set(
                 ConditionSet::new()
@@ -41,7 +41,7 @@ impl Plugin for WorldPlugin {
 }
 
 fn setup_world(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands.spawn_bundle(Camera2dBundle::default());
+    // commands.spawn_bundle(Camera2dBundle::default());
 
     let texture_handle: Handle<Image> = asset_server.load("textures/tiles.png");
 
