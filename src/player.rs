@@ -2,6 +2,7 @@ use crate::actions::Actions;
 use crate::loading::TextureAssets;
 use crate::GameState;
 use bevy::prelude::*;
+use bevy::render::texture::ImageSettings;
 use iyes_loopless::prelude::*;
 
 pub struct PlayerPlugin;
@@ -56,7 +57,7 @@ fn spawn_player(
     commands
         .spawn_bundle(SpriteSheetBundle {
             texture_atlas: texture_atlas_handle,
-            transform: Transform::from_xyz(100., 0., 10.),
+            transform: Transform::from_xyz(8., 8., 10.),
             // transform: Transform::from_scale(Vec3::splat(6.0)),
             ..default()
         })

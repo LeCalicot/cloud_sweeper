@@ -48,7 +48,10 @@ fn setup_menu(
     font_assets: Res<FontAssets>,
     button_colors: Res<ButtonColors>,
 ) {
-    commands.spawn_bundle(Camera2dBundle::default());
+    commands
+        .spawn_bundle(Camera2dBundle::default())
+        .insert(Transform::from_xyz(0., 0., 1000.).with_scale(Vec3::new(1. / 4., 1. / 4., 1.)));
+    // .insert(Transform::from_scale(Vec3::new(1. / 4., 1. / 4., 1.)));
     // commands.spawn_bundle(Camera2dBundle::default());
     commands
         .spawn_bundle(ButtonBundle {

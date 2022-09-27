@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use bevy::prelude::{App, ClearColor, Color, Msaa, NonSend, WindowDescriptor};
+use bevy::render::texture::ImageSettings;
 use bevy::window::WindowId;
 use bevy::winit::WinitWindows;
 use bevy::DefaultPlugins;
@@ -14,12 +15,13 @@ fn main() {
         .insert_resource(Msaa { samples: 1 })
         .insert_resource(ClearColor(Color::rgb(0.4, 0.4, 0.4)))
         .insert_resource(WindowDescriptor {
-            width: 800.,
-            height: 600.,
+            width: 640.,
+            height: 640.,
             title: "Cloud Sweeper".to_string(), // ToDo
             canvas: Some("#bevy".to_owned()),
             ..Default::default()
         })
+        .insert_resource(ImageSettings::default_nearest())
         .add_plugins(DefaultPlugins)
         .add_plugin(GamePlugin)
         .add_startup_system(set_window_icon)
