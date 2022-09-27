@@ -42,8 +42,8 @@ impl Plugin for GamePlugin {
             .add_plugin(MenuPlugin)
             .add_plugin(ActionsPlugin)
             .add_plugin(InternalAudioPlugin)
-            .add_plugin(WorldPlugin);
-        // .add_plugin(PlayerPlugin);
+            .add_plugin(WorldPlugin)
+            .add_plugin(PlayerPlugin);
 
         #[cfg(debug_assertions)]
         {
