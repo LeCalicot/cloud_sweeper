@@ -1,6 +1,7 @@
 mod actions;
 mod audio;
 mod loading;
+mod logic;
 mod menu;
 mod player;
 mod world;
@@ -8,6 +9,7 @@ mod world;
 use crate::actions::ActionsPlugin;
 use crate::audio::InternalAudioPlugin;
 use crate::loading::LoadingPlugin;
+use crate::logic::LogicPlugin;
 use crate::menu::MenuPlugin;
 use crate::player::PlayerPlugin;
 use crate::world::WorldPlugin;
@@ -43,8 +45,8 @@ impl Plugin for GamePlugin {
             .add_plugin(ActionsPlugin)
             .add_plugin(InternalAudioPlugin)
             .add_plugin(WorldPlugin)
-            .add_plugin(PlayerPlugin);
-
+            .add_plugin(PlayerPlugin)
+            .add_plugin(LogicPlugin);
         #[cfg(debug_assertions)]
         {
             app.add_plugin(FrameTimeDiagnosticsPlugin::default())

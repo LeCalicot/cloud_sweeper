@@ -19,7 +19,7 @@ impl Plugin for PlayerPlugin {
                 ConditionSet::new()
                     .run_in_state(GameState::Playing)
                     .with_system(animate_sprite)
-                    // .with_system(move_player)
+                    .with_system(move_player)
                     .into(),
             );
     }
@@ -61,6 +61,7 @@ fn spawn_player(
             // transform: Transform::from_scale(Vec3::splat(6.0)),
             ..default()
         })
+        .insert(Player)
         .insert(AnimationTimer(Timer::from_seconds(0.1, true)));
 }
 

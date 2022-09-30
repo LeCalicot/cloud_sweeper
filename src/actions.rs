@@ -79,7 +79,12 @@ fn set_movement_actions(mut actions: ResMut<Actions>, keyboard_input: Res<Input<
     }
 }
 
-enum GameControl {
+///Enum for the direction. Idle has been added to be able to use an array buffer
+/// instead of a vector.
+#[derive(Default, Eq, PartialEq)]
+pub enum GameControl {
+    #[default]
+    Idle,
     Up,
     Down,
     Left,
@@ -105,6 +110,7 @@ impl GameControl {
                 keyboard_input.just_released(KeyCode::D)
                     || keyboard_input.just_released(KeyCode::Right)
             }
+            GameControl::Idle => false,
         }
     }
 
@@ -122,6 +128,7 @@ impl GameControl {
             GameControl::Right => {
                 keyboard_input.pressed(KeyCode::D) || keyboard_input.pressed(KeyCode::Right)
             }
+            GameControl::Idle => false,
         }
     }
 
@@ -142,6 +149,7 @@ impl GameControl {
                 keyboard_input.just_pressed(KeyCode::D)
                     || keyboard_input.just_pressed(KeyCode::Right)
             }
+            GameControl::Idle => false,
         }
     }
 }
