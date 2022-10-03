@@ -33,11 +33,12 @@ fn set_up_logic(mut commands: Commands) {
 }
 
 impl PlayerControl {
-    fn move_player(&mut self, game_control: GameControl) {
+    pub fn move_player(&mut self, game_control: GameControl) {
         let non_idle_ndx = self
             .input_buffer
             .iter()
             .position(|x| x != &GameControl::Idle);
+        println!("{game_control:?}");
         if let Some(x) = non_idle_ndx {
             self.input_buffer[x] = game_control;
         } else {

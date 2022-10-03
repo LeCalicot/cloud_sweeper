@@ -1,5 +1,6 @@
-use crate::actions::Actions;
+use crate::actions::{Actions, GameControl};
 use crate::loading::TextureAssets;
+use crate::logic::PlayerControl;
 use crate::GameState;
 use bevy::prelude::*;
 use bevy::render::texture::ImageSettings;
@@ -68,18 +69,20 @@ fn spawn_player(
 fn move_player(
     time: Res<Time>,
     actions: Res<Actions>,
-    mut player_query: Query<&mut Transform, With<Player>>,
+    mut player_control: ResMut<PlayerControl>, // mut player_query: Query<&mut Transform, With<Player>>,
 ) {
-    if actions.player_movement.is_none() {
+    if actions.next_move == GameControl::Idle {
         return;
     }
-    let speed = 150.;
-    let movement = Vec3::new(
-        actions.player_movement.unwrap().x * speed * time.delta_seconds(),
-        actions.player_movement.unwrap().y * speed * time.delta_seconds(),
-        0.,
-    );
-    for mut player_transform in &mut player_query {
-        player_transform.translation += movement;
-    }
+
+    player_control.move_player(actions.next_move);
+    // let speed = 150.;
+    // let movement = Vec3::new(
+    //     actions.player_movement.unwrap().x * speed * time.delta_seconds(),
+    //     actions.player_movement.unwrap().y * speed * time.delta_seconds(),
+    //     0.,
+    // );
+    // for mut player_transform in &mut player_query {
+    //     player_transform.translation += movement;
+    // }
 }
