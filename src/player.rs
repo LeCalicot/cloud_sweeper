@@ -8,8 +8,10 @@ use iyes_loopless::prelude::*;
 
 pub struct PlayerPlugin;
 
-#[derive(Component)]
-pub struct Player;
+#[derive(Component, Default)]
+pub struct Player {
+    pub pos: Vec2,
+}
 
 /// This plugin handles player related stuff like movement
 /// Player logic is only active during the State `GameState::Playing`
@@ -62,27 +64,26 @@ fn spawn_player(
             // transform: Transform::from_scale(Vec3::splat(6.0)),
             ..default()
         })
-        .insert(Player)
+        .insert(Player::default())
         .insert(AnimationTimer(Timer::from_seconds(0.1, true)));
 }
 
-fn move_player(
-    time: Res<Time>,
-    actions: Res<Actions>,
-    mut player_control: ResMut<PlayerControl>, // mut player_query: Query<&mut Transform, With<Player>>,
-) {
-    if actions.next_move == GameControl::Idle {
-        return;
-    }
+// impl Player {
+//     fn set_position(&mut self, new_pos: Vec2) {
+//         self.pos = new_pos
+//     }
+// }
 
-    player_control.move_player(actions.next_move);
-    // let speed = 150.;
-    // let movement = Vec3::new(
-    //     actions.player_movement.unwrap().x * speed * time.delta_seconds(),
-    //     actions.player_movement.unwrap().y * speed * time.delta_seconds(),
-    //     0.,
-    // );
-    // for mut player_transform in &mut player_query {
-    //     player_transform.translation += movement;
-    // }
+pub fn move_player(
+    mut player_query: Query<(&mut Transform, &Player), (With<Player>,)>,
+    player_control: Res<PlayerControl>,
+) {
+    let pl_move = player_control.player_pos;
+    for (mut transform, player) in player_query.iter_mut() {
+        transform.translation = Vec3::new(
+            player.pos[0] + f32::from(pl_move[0]) * 16.,
+            player.pos[1] + f32::from(pl_move[1]) * 16.,
+            0.,
+        );
+    }
 }

@@ -26,7 +26,15 @@ pub struct Actions {
 }
 
 fn set_movement_actions(mut actions: ResMut<Actions>, keyboard_input: Res<Input<KeyCode>>) {
-    actions.next_move = match_input(keyboard_input);
+    let received_input = match_input(keyboard_input);
+    match received_input {
+        // If Idle, do nothing
+        GameControl::Idle => (),
+        // Else, replace the input in the actions. So far the action contains
+        // only one input at a time
+        input => actions.next_move = input,
+    };
+    // actions.next_move = match_input(keyboard_input);
 }
 
 ///Enum for the direction. Idle has been added to be able to use an array buffer
