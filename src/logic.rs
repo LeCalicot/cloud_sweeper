@@ -4,6 +4,9 @@ use crate::actions::Actions;
 use crate::actions::GameControl;
 use crate::loading::TextureAssets;
 use crate::player::Player;
+use crate::player::INIT_POS;
+use crate::world::STAGE_BL;
+use crate::world::STAGE_UR;
 use crate::GameState;
 use bevy::prelude::*;
 use bevy::render::texture::ImageSettings;
@@ -11,7 +14,7 @@ use colored::*;
 use iyes_loopless::prelude::*;
 
 const MAX_BUFFER_INPUT: usize = 10;
-const TIMER_DUR: f32 = 0.1;
+const TIMER_DUR: f32 = 0.050;
 
 pub struct LogicPlugin;
 
@@ -57,7 +60,7 @@ struct AnimationTimer(Timer);
 fn set_up_logic(mut commands: Commands) {
     // Create our game rules resource
     commands.insert_resource(PlayerControl {
-        player_pos: [0, 0],
+        player_pos: INIT_POS,
         input_buffer: [GameControl::Idle; MAX_BUFFER_INPUT],
         timer: Timer::from_seconds(TIMER_DUR, true),
     });
@@ -97,10 +100,34 @@ pub fn pop_player_buffer(mut player_control: ResMut<PlayerControl>, time: Res<Ti
         player_control.input_buffer.rotate_left(1);
 
         let player_move: [i8; 2] = match player_action {
-            GameControl::Down => [0, -1],
-            GameControl::Up => [0, 1],
-            GameControl::Left => [-1, 0],
-            GameControl::Right => [1, 0],
+            GameControl::Down => {
+                if player_control.player_pos[1] > (STAGE_BL[1] as i8) {
+                    [0, -1]
+                } else {
+                    [0, 0]
+                }
+            }
+            GameControl::Up => {
+                if player_control.player_pos[1] < (STAGE_UR[1] as i8) {
+                    [0, 1]
+                } else {
+                    [0, 0]
+                }
+            }
+            GameControl::Left => {
+                if player_control.player_pos[0] > (STAGE_BL[0] as i8) {
+                    [-1, 0]
+                } else {
+                    [0, 0]
+                }
+            }
+            GameControl::Right => {
+                if player_control.player_pos[0] < (STAGE_UR[0] as i8) {
+                    [1, 0]
+                } else {
+                    [0, 0]
+                }
+            }
             GameControl::Idle => [0, 0],
         };
         let player_abs_pos = [
@@ -108,7 +135,7 @@ pub fn pop_player_buffer(mut player_control: ResMut<PlayerControl>, time: Res<Ti
             player_control.player_pos[1] + player_move[1],
         ];
         player_control.player_pos = player_abs_pos;
-        // TODO: forbid going out of the grid
+
         if player_action != GameControl::Idle {
             info!("pl. pos: {:?}", player_control.player_pos)
         }

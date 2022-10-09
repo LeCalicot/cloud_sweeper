@@ -10,6 +10,8 @@ use iyes_loopless::prelude::*;
 
 pub const TILE_SIZE: f32 = 16.;
 pub const PLAYER_LAYER: f32 = 10.;
+pub const INIT_POS: [i8; 2] = [5i8, 5i8];
+
 pub struct PlayerPlugin;
 
 #[derive(Component, Default)]
@@ -65,7 +67,11 @@ fn spawn_player(
     commands
         .spawn_bundle(SpriteSheetBundle {
             texture_atlas: texture_atlas_handle,
-            transform: Transform::from_xyz(TILE_SIZE / 2., TILE_SIZE / 2., PLAYER_LAYER),
+            transform: Transform::from_xyz(
+                TILE_SIZE * (0.5 - (INIT_POS[0] as f32)),
+                TILE_SIZE * (0.5 - (INIT_POS[1] as f32)),
+                PLAYER_LAYER,
+            ),
             ..default()
         })
         .insert(Player::default())
@@ -85,8 +91,8 @@ pub fn move_player(
     let pl_grid_pos = player_control.player_pos;
     for mut transform in player_query.iter_mut() {
         transform.translation = Vec3::new(
-            f32::from(pl_grid_pos[0]) * TILE_SIZE + TILE_SIZE / 2.,
-            f32::from(pl_grid_pos[1]) * TILE_SIZE + TILE_SIZE / 2.,
+            (f32::from(pl_grid_pos[0]) - INIT_POS[0] as f32) * TILE_SIZE + TILE_SIZE / 2.,
+            (f32::from(pl_grid_pos[1]) - INIT_POS[1] as f32) * TILE_SIZE + TILE_SIZE / 2.,
             PLAYER_LAYER,
         );
     }
