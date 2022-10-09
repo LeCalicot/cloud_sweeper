@@ -8,6 +8,7 @@ use iyes_loopless::prelude::*;
 
 #[cfg(debug_assertions)]
 const AUTOSTART_TIME_MS: u64 = 500;
+use crate::world::{CAMERA_LAYER, DISPLAY_RATIO};
 use std::time::Duration;
 
 pub struct MenuPlugin;
@@ -50,9 +51,13 @@ fn setup_menu(
     font_assets: Res<FontAssets>,
     button_colors: Res<ButtonColors>,
 ) {
-    commands
-        .spawn_bundle(Camera2dBundle::default())
-        .insert(Transform::from_xyz(0., 0., 1000.).with_scale(Vec3::new(1. / 4., 1. / 4., 1.)));
+    commands.spawn_bundle(Camera2dBundle::default()).insert(
+        Transform::from_xyz(0., 0., CAMERA_LAYER).with_scale(Vec3::new(
+            DISPLAY_RATIO,
+            DISPLAY_RATIO,
+            1.,
+        )),
+    );
     // .insert(Transform::from_scale(Vec3::new(1. / 4., 1. / 4., 1.)));
     // commands.spawn_bundle(Camera2dBundle::default());
     commands

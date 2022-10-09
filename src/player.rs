@@ -8,8 +8,8 @@ use bevy::prelude::*;
 use bevy::render::texture::ImageSettings;
 use iyes_loopless::prelude::*;
 
-const TILE_SIZE: f32 = 16.;
-
+pub const TILE_SIZE: f32 = 16.;
+pub const PLAYER_LAYER: f32 = 10.;
 pub struct PlayerPlugin;
 
 #[derive(Component, Default)]
@@ -65,8 +65,7 @@ fn spawn_player(
     commands
         .spawn_bundle(SpriteSheetBundle {
             texture_atlas: texture_atlas_handle,
-            transform: Transform::from_xyz(8., 8., 10.),
-            // transform: Transform::from_scale(Vec3::splat(6.0)),
+            transform: Transform::from_xyz(TILE_SIZE / 2., TILE_SIZE / 2., PLAYER_LAYER),
             ..default()
         })
         .insert(Player::default())
@@ -88,7 +87,7 @@ pub fn move_player(
         transform.translation = Vec3::new(
             f32::from(pl_grid_pos[0]) * TILE_SIZE + TILE_SIZE / 2.,
             f32::from(pl_grid_pos[1]) * TILE_SIZE + TILE_SIZE / 2.,
-            0.,
+            PLAYER_LAYER,
         );
     }
 }

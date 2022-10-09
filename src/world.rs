@@ -1,5 +1,6 @@
 #![cfg_attr(debug_assertions, allow(dead_code, unused_imports))]
 // use crate::loading::TextureAssets;
+use crate::player::TILE_SIZE;
 use crate::GameState;
 use bevy::{prelude::*, render::texture::ImageSettings};
 use bevy_ecs_tilemap::helpers::get_centered_transform_2d;
@@ -21,8 +22,11 @@ pub struct Sky;
 #[derive(Component)]
 pub struct Platform;
 
-const STAGE_BL: [u32; 2] = [2, 2];
-const STAGE_UR: [u32; 2] = [7, 7];
+pub const LEVEL_SIZE: u32 = 10;
+pub const STAGE_BL: [u32; 2] = [2, 2];
+pub const STAGE_UR: [u32; 2] = [7, 7];
+pub const CAMERA_LAYER: f32 = 1000.;
+pub const DISPLAY_RATIO: f32 = 1. / 4.;
 
 /// This plugin handles world related stuff: background, cloud movement,...
 impl Plugin for WorldPlugin {
@@ -46,7 +50,10 @@ fn setup_world(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     let texture_handle: Handle<Image> = asset_server.load("textures/tiles.png");
 
-    let tilemap_size = TilemapSize { x: 10, y: 10 };
+    let tilemap_size = TilemapSize {
+        x: LEVEL_SIZE,
+        y: LEVEL_SIZE,
+    };
     let tilemap_entity = commands.spawn().id();
     let mut tile_storage = TileStorage::empty(tilemap_size);
 
@@ -79,8 +86,14 @@ fn setup_world(mut commands: Commands, asset_server: Res<AssetServer>) {
         }
     }
 
-    let tile_size = TilemapTileSize { x: 16.0, y: 16.0 };
-    let grid_size = TilemapGridSize { x: 16.0, y: 16.0 };
+    let tile_size = TilemapTileSize {
+        x: TILE_SIZE,
+        y: TILE_SIZE,
+    };
+    let grid_size = TilemapGridSize {
+        x: TILE_SIZE,
+        y: TILE_SIZE,
+    };
 
     commands
         .entity(tilemap_entity)
