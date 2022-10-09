@@ -66,7 +66,7 @@ pub fn fill_player_buffer(actions: Res<Actions>, mut player_control: ResMut<Play
         .input_buffer
         .iter()
         .position(|x| x == &GameControl::Idle);
-    println!("{game_control:?}");
+
     // The buffer is not full, we can replace the first idle element
     if let Some(x) = idle_ndx {
         player_control.input_buffer[x] = game_control;

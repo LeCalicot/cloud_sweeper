@@ -34,6 +34,9 @@ fn set_movement_actions(mut actions: ResMut<Actions>, keyboard_input: Res<Input<
         // only one input at a time
         input => actions.next_move = input,
     };
+    if received_input != GameControl::Idle {
+        info!("new input: {received_input:?}");
+    }
     // actions.next_move = match_input(keyboard_input);
 }
 
