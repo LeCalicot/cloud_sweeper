@@ -1,3 +1,4 @@
+#![cfg_attr(debug_assertions, allow(dead_code, unused_imports))]
 // use crate::loading::TextureAssets;
 use crate::GameState;
 use bevy::{prelude::*, render::texture::ImageSettings};
@@ -94,6 +95,6 @@ fn setup_world(mut commands: Commands, asset_server: Res<AssetServer>) {
         });
 }
 
-fn draw_grid(tile_query: Query<&mut TileVisible>) {}
+// fn draw_grid(tile_query: Query<&mut TileVisible>) {}
 
 fn update_world() {}

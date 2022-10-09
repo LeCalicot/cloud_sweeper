@@ -1,3 +1,5 @@
+#![cfg_attr(debug_assertions, allow(dead_code, unused_imports))]
+
 use crate::actions::{Actions, GameControl};
 use crate::loading::AudioAssets;
 use crate::GameState;

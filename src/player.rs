@@ -1,3 +1,5 @@
+#![cfg_attr(debug_assertions, allow(dead_code, unused_imports))]
+
 use crate::actions::{Actions, GameControl};
 use crate::loading::TextureAssets;
 use crate::logic::PlayerControl;
@@ -5,6 +7,8 @@ use crate::GameState;
 use bevy::prelude::*;
 use bevy::render::texture::ImageSettings;
 use iyes_loopless::prelude::*;
+
+const TILE_SIZE: f32 = 16.;
 
 pub struct PlayerPlugin;
 
@@ -55,7 +59,8 @@ fn spawn_player(
     asset_server: Res<AssetServer>,
 ) {
     let texture_handle = asset_server.load("textures/duck_spritesheet.png");
-    let texture_atlas = TextureAtlas::from_grid(texture_handle, Vec2::new(16.0, 16.0), 1, 4);
+    let texture_atlas =
+        TextureAtlas::from_grid(texture_handle, Vec2::new(TILE_SIZE, TILE_SIZE), 1, 4);
     let texture_atlas_handle = texture_atlases.add(texture_atlas);
     commands
         .spawn_bundle(SpriteSheetBundle {
@@ -75,14 +80,14 @@ fn spawn_player(
 // }
 
 pub fn move_player(
-    mut player_query: Query<(&mut Transform, &Player), (With<Player>,)>,
+    mut player_query: Query<&mut Transform, With<Player>>,
     player_control: Res<PlayerControl>,
 ) {
-    let pl_move = player_control.player_pos;
-    for (mut transform, player) in player_query.iter_mut() {
+    let pl_grid_pos = player_control.player_pos;
+    for mut transform in player_query.iter_mut() {
         transform.translation = Vec3::new(
-            player.pos[0] + f32::from(pl_move[0]) * 16.,
-            player.pos[1] + f32::from(pl_move[1]) * 16.,
+            f32::from(pl_grid_pos[0]) * TILE_SIZE + TILE_SIZE / 2.,
+            f32::from(pl_grid_pos[1]) * TILE_SIZE + TILE_SIZE / 2.,
             0.,
         );
     }
