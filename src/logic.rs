@@ -2,6 +2,8 @@
 
 use crate::actions::Actions;
 use crate::actions::GameControl;
+use crate::clouds;
+use crate::clouds::CloudDir;
 use crate::loading::TextureAssets;
 use crate::player::Player;
 use crate::player::INIT_POS;
@@ -14,7 +16,8 @@ use colored::*;
 use iyes_loopless::prelude::*;
 
 const MAX_BUFFER_INPUT: usize = 10;
-const TIMER_DUR: f32 = 0.050;
+const MOVE_TIMER: f32 = 0.050;
+const CLOUD_TIMER: f32 = 0.5;
 
 pub struct LogicPlugin;
 
@@ -26,6 +29,14 @@ pub struct PlayerControl {
     pub player_pos: [i8; 2],
     input_buffer: [GameControl; MAX_BUFFER_INPUT],
     timer: Timer,
+}
+
+#[derive(Default)]
+pub struct CloudControl {
+    pub new_cloud: Option<CloudDir>,
+    cur_cloud: CloudDir,
+    timer: Timer,
+    sequence: [CloudDir; 4],
 }
 
 /// This plugin handles player related stuff like movement
@@ -48,11 +59,16 @@ impl Plugin for LogicPlugin {
                     .label("pop_player_buffer")
                     .with_system(pop_player_buffer)
                     .into(),
+            )
+            .add_system_set(
+                ConditionSet::new()
+                    .run_in_state(GameState::Playing)
+                    .with_system(spawn_cloud)
+                    .with_system(move_clouds)
+                    .into(),
             );
     }
 }
-
-// https://github.com/IyesGames/iyes_loopless
 
 #[derive(Component, Deref, DerefMut)]
 struct AnimationTimer(Timer);
@@ -62,7 +78,18 @@ fn set_up_logic(mut commands: Commands) {
     commands.insert_resource(PlayerControl {
         player_pos: INIT_POS,
         input_buffer: [GameControl::Idle; MAX_BUFFER_INPUT],
-        timer: Timer::from_seconds(TIMER_DUR, true),
+        timer: Timer::from_seconds(MOVE_TIMER, true),
+    });
+    commands.insert_resource(CloudControl {
+        new_cloud: None,
+        timer: Timer::from_seconds(CLOUD_TIMER, true),
+        cur_cloud: CloudDir::Left,
+        sequence: [
+            CloudDir::Left,
+            CloudDir::Up,
+            CloudDir::Right,
+            CloudDir::Down,
+        ],
     });
 }
 
@@ -141,3 +168,25 @@ pub fn pop_player_buffer(mut player_control: ResMut<PlayerControl>, time: Res<Ti
         }
     };
 }
+
+impl CloudControl {
+    fn next_cloud(&mut self) -> CloudDir {
+        let cur_cloud = self.cur_cloud;
+        let cur_ndx = self.sequence.iter().position(|x| x == &cur_cloud);
+        let next_cloud = self.sequence[(cur_ndx.unwrap() + 1) % self.sequence.len()];
+        self.cur_cloud = next_cloud;
+        next_cloud
+    }
+}
+
+fn spawn_cloud(mut cloud_control: ResMut<CloudControl>, time: Res<Time>) {
+    // timers gotta be ticked, to work
+    cloud_control.timer.tick(time.delta());
+
+    // if it finished, despawn the bomb
+    if cloud_control.timer.finished() {
+        cloud_control.new_cloud = Some(cloud_control.next_cloud());
+    }
+}
+
+fn move_clouds() {}

@@ -2,6 +2,7 @@
 
 mod actions;
 mod audio;
+mod clouds;
 mod loading;
 mod logic;
 mod menu;
@@ -10,6 +11,7 @@ mod world;
 
 use crate::actions::ActionsPlugin;
 use crate::audio::InternalAudioPlugin;
+use crate::clouds::CloudPlugin;
 use crate::loading::LoadingPlugin;
 use crate::logic::LogicPlugin;
 use crate::menu::MenuPlugin;
@@ -48,7 +50,8 @@ impl Plugin for GamePlugin {
             // .add_plugin(InternalAudioPlugin)
             .add_plugin(WorldPlugin)
             .add_plugin(PlayerPlugin)
-            .add_plugin(LogicPlugin);
+            .add_plugin(LogicPlugin)
+            .add_plugin(CloudPlugin);
         #[cfg(debug_assertions)]
         {
             app.add_system(bevy::window::close_on_esc)
