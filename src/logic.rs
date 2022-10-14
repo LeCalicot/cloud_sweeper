@@ -4,16 +4,21 @@ use crate::actions::Actions;
 use crate::actions::GameControl;
 use crate::clouds;
 use crate::clouds::CloudDir;
+use crate::clouds::CLOUD_LAYER;
 use crate::loading::TextureAssets;
 use crate::player::Player;
 use crate::player::INIT_POS;
+use crate::player::TILE_SIZE;
+use crate::world::LEVEL_SIZE;
 use crate::world::STAGE_BL;
 use crate::world::STAGE_UR;
+use crate::world::STAGE_WIDTH;
 use crate::GameState;
 use bevy::prelude::*;
 use bevy::render::texture::ImageSettings;
 use colored::*;
 use iyes_loopless::prelude::*;
+use rand::seq::SliceRandom;
 
 const MAX_BUFFER_INPUT: usize = 10;
 const MOVE_TIMER: f32 = 0.050;
@@ -37,6 +42,78 @@ pub struct CloudControl {
     cur_cloud: CloudDir,
     timer: Timer,
     sequence: [CloudDir; 4],
+}
+
+pub struct GridState {
+    left_col: [bool; STAGE_WIDTH as usize],
+    right_col: [bool; STAGE_WIDTH as usize],
+    up_row: [bool; STAGE_WIDTH as usize],
+    down_row: [bool; STAGE_WIDTH as usize],
+}
+
+impl Default for GridState {
+    fn default() -> Self {
+        GridState {
+            left_col: [false; STAGE_WIDTH as usize],
+            right_col: [false; STAGE_WIDTH as usize],
+            up_row: [false; STAGE_WIDTH as usize],
+            down_row: [false; STAGE_WIDTH as usize],
+        }
+    }
+}
+
+impl GridState {
+    pub fn new_cloud(&mut self, border: CloudDir) -> Option<Vec3> {
+        let line = match border {
+            CloudDir::Down => &mut self.up_row,
+            CloudDir::Left => &mut self.right_col,
+            CloudDir::Right => &mut self.left_col,
+            CloudDir::Up => &mut self.down_row,
+        };
+
+        let non_occupied = line
+            .iter()
+            .enumerate()
+            .filter(|(_, &v)| !v)
+            .map(|(index, _)| index)
+            .collect::<Vec<_>>();
+
+        if let Some(ndx) = non_occupied.choose(&mut rand::thread_rng()) {
+            line[*ndx] = true;
+
+            let (x, y) = match border {
+                CloudDir::Down => (
+                    ((LEVEL_SIZE - STAGE_WIDTH) as f32 + (*ndx as f32) - 1.5),
+                    LEVEL_SIZE as f32 - 0.5,
+                ),
+                CloudDir::Left => (
+                    LEVEL_SIZE as f32 - 0.5,
+                    ((LEVEL_SIZE - STAGE_WIDTH) as f32 + (*ndx as f32) - 1.5),
+                ),
+                CloudDir::Right => (
+                    0.5,
+                    ((LEVEL_SIZE - STAGE_WIDTH) as f32 + (*ndx as f32) - 1.5),
+                ),
+                CloudDir::Up => (
+                    ((LEVEL_SIZE - STAGE_WIDTH) as f32 + (*ndx as f32) - 1.5),
+                    0.5,
+                ),
+            };
+
+            Some(Vec3 {
+                x: TILE_SIZE * (x - (LEVEL_SIZE as f32) / 2.),
+                y: TILE_SIZE * (y - (LEVEL_SIZE as f32) / 2.),
+                z: CLOUD_LAYER,
+            })
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Component)]
+struct Cloud {
+    pos: [i8; 2],
 }
 
 /// This plugin handles player related stuff like movement
@@ -80,6 +157,7 @@ fn set_up_logic(mut commands: Commands) {
         input_buffer: [GameControl::Idle; MAX_BUFFER_INPUT],
         timer: Timer::from_seconds(MOVE_TIMER, true),
     });
+    commands.insert_resource(GridState::default());
     commands.insert_resource(CloudControl {
         new_cloud: None,
         timer: Timer::from_seconds(CLOUD_TIMER, true),

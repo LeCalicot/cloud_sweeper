@@ -68,8 +68,8 @@ fn spawn_player(
         .spawn_bundle(SpriteSheetBundle {
             texture_atlas: texture_atlas_handle,
             transform: Transform::from_xyz(
-                TILE_SIZE * (0.5 - (INIT_POS[0] as f32)),
-                TILE_SIZE * (0.5 - (INIT_POS[1] as f32)),
+                TILE_SIZE * (0.5 + (INIT_POS[0] as f32)),
+                TILE_SIZE * (0.5 + (INIT_POS[1] as f32)),
                 PLAYER_LAYER,
             ),
             ..default()
