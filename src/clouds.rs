@@ -40,25 +40,25 @@ fn new_cloud(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
 ) {
-    if cloud_control.new_cloud.is_some() {
+    if cloud_control.cur_cloud_dir.is_some() {
         println!("{} {} {:?}", { "➤".blue() }, { ":".blue() }, {
-            cloud_control.new_cloud
+            cloud_control.cur_cloud_dir
         });
 
-        let texture = match cloud_control.new_cloud.unwrap() {
+        let texture = match cloud_control.cur_cloud_dir.unwrap() {
             CloudDir::Down => "textures/down_cloud.png",
             CloudDir::Left => "textures/left_cloud.png",
             CloudDir::Right => "textures/right_cloud.png",
             CloudDir::Up => "textures/up_cloud.png",
         };
 
-        if let Some(cloud_pos) = grid_state.new_cloud(cloud_control.new_cloud.unwrap()) {
+        if let Some(cloud_pos) = grid_state.new_cloud(cloud_control.cur_cloud_dir.unwrap()) {
             commands.spawn_bundle(SpriteBundle {
                 texture: asset_server.load(texture),
                 transform: Transform::from_translation(cloud_pos),
                 ..default()
             });
         }
-        cloud_control.new_cloud = None;
+        // cloud_control.cur_cloud_dir = None;
     }
 }

@@ -38,7 +38,7 @@ pub struct PlayerControl {
 
 #[derive(Default)]
 pub struct CloudControl {
-    pub new_cloud: Option<CloudDir>,
+    pub cur_cloud_dir: Option<CloudDir>,
     cur_cloud: CloudDir,
     timer: Timer,
     sequence: [CloudDir; 4],
@@ -140,7 +140,8 @@ impl Plugin for LogicPlugin {
             .add_system_set(
                 ConditionSet::new()
                     .run_in_state(GameState::Playing)
-                    .with_system(spawn_cloud)
+                    .with_system(tick_timer)
+                    .with_system(set_cloud_direction)
                     .with_system(move_clouds)
                     .into(),
             );
@@ -159,7 +160,7 @@ fn set_up_logic(mut commands: Commands) {
     });
     commands.insert_resource(GridState::default());
     commands.insert_resource(CloudControl {
-        new_cloud: None,
+        cur_cloud_dir: None,
         timer: Timer::from_seconds(CLOUD_TIMER, true),
         cur_cloud: CloudDir::Left,
         sequence: [
@@ -248,7 +249,7 @@ pub fn pop_player_buffer(mut player_control: ResMut<PlayerControl>, time: Res<Ti
 }
 
 impl CloudControl {
-    fn next_cloud(&mut self) -> CloudDir {
+    fn next_cloud_direction(&mut self) -> CloudDir {
         let cur_cloud = self.cur_cloud;
         let cur_ndx = self.sequence.iter().position(|x| x == &cur_cloud);
         let next_cloud = self.sequence[(cur_ndx.unwrap() + 1) % self.sequence.len()];
@@ -257,14 +258,24 @@ impl CloudControl {
     }
 }
 
-fn spawn_cloud(mut cloud_control: ResMut<CloudControl>, time: Res<Time>) {
+fn tick_timer(mut cloud_control: ResMut<CloudControl>, time: Res<Time>) {
     // timers gotta be ticked, to work
     cloud_control.timer.tick(time.delta());
+}
 
-    // if it finished, despawn the bomb
+fn set_cloud_direction(mut cloud_control: ResMut<CloudControl>, time: Res<Time>) {
     if cloud_control.timer.finished() {
-        cloud_control.new_cloud = Some(cloud_control.next_cloud());
+        cloud_control.cur_cloud_dir = Some(cloud_control.next_cloud_direction());
+    } else {
+        cloud_control.cur_cloud_dir = None;
     }
 }
 
-fn move_clouds() {}
+fn move_clouds(mut cloud_control: ResMut<CloudControl>, time: Res<Time>) {
+    // return early if the timer is off or there is no cloud direction set
+    if !cloud_control.timer.finished() || cloud_control.cur_cloud_dir.is_none() {
+        return;
+    }
+
+    // let cur_cloud_dir =
+}
