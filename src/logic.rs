@@ -3,7 +3,13 @@
 use crate::actions::Actions;
 use crate::actions::GameControl;
 use crate::clouds;
+use crate::clouds::Cloud;
 use crate::clouds::CloudDir;
+use crate::clouds::DownCloud;
+use crate::clouds::GridPos;
+use crate::clouds::LeftCloud;
+use crate::clouds::RightCloud;
+use crate::clouds::UpCloud;
 use crate::clouds::CLOUD_LAYER;
 use crate::loading::TextureAssets;
 use crate::player::Player;
@@ -63,7 +69,7 @@ impl Default for GridState {
 }
 
 impl GridState {
-    pub fn new_cloud(&mut self, border: CloudDir) -> Option<Vec3> {
+    pub fn new_cloud(&mut self, border: CloudDir) -> Option<(Vec3, [i8; 2])> {
         let line = match border {
             CloudDir::Down => &mut self.up_row,
             CloudDir::Left => &mut self.right_col,
@@ -81,39 +87,45 @@ impl GridState {
         if let Some(ndx) = non_occupied.choose(&mut rand::thread_rng()) {
             line[*ndx] = true;
 
-            let (x, y) = match border {
+            let (x, y, xi, yi) = match border {
                 CloudDir::Down => (
                     ((LEVEL_SIZE - STAGE_WIDTH) as f32 + (*ndx as f32) - 1.5),
                     LEVEL_SIZE as f32 - 0.5,
+                    (LEVEL_SIZE - STAGE_WIDTH) as i8 + *ndx as i8,
+                    LEVEL_SIZE as i8,
                 ),
                 CloudDir::Left => (
                     LEVEL_SIZE as f32 - 0.5,
                     ((LEVEL_SIZE - STAGE_WIDTH) as f32 + (*ndx as f32) - 1.5),
+                    LEVEL_SIZE as i8,
+                    (LEVEL_SIZE - STAGE_WIDTH) as i8 + *ndx as i8,
                 ),
                 CloudDir::Right => (
                     0.5,
                     ((LEVEL_SIZE - STAGE_WIDTH) as f32 + (*ndx as f32) - 1.5),
+                    0i8,
+                    (LEVEL_SIZE - STAGE_WIDTH) as i8 + *ndx as i8,
                 ),
                 CloudDir::Up => (
                     ((LEVEL_SIZE - STAGE_WIDTH) as f32 + (*ndx as f32) - 1.5),
                     0.5,
+                    (LEVEL_SIZE - STAGE_WIDTH) as i8 + *ndx as i8,
+                    0i8,
                 ),
             };
 
-            Some(Vec3 {
-                x: TILE_SIZE * (x - (LEVEL_SIZE as f32) / 2.),
-                y: TILE_SIZE * (y - (LEVEL_SIZE as f32) / 2.),
-                z: CLOUD_LAYER,
-            })
+            Some((
+                Vec3 {
+                    x: TILE_SIZE * (x - (LEVEL_SIZE as f32) / 2.),
+                    y: TILE_SIZE * (y - (LEVEL_SIZE as f32) / 2.),
+                    z: CLOUD_LAYER,
+                },
+                [xi, yi],
+            ))
         } else {
             None
         }
     }
-}
-
-#[derive(Component)]
-struct Cloud {
-    pos: [i8; 2],
 }
 
 /// This plugin handles player related stuff like movement
@@ -263,7 +275,7 @@ fn tick_timer(mut cloud_control: ResMut<CloudControl>, time: Res<Time>) {
     cloud_control.timer.tick(time.delta());
 }
 
-fn set_cloud_direction(mut cloud_control: ResMut<CloudControl>, time: Res<Time>) {
+fn set_cloud_direction(mut cloud_control: ResMut<CloudControl>) {
     if cloud_control.timer.finished() {
         cloud_control.cur_cloud_dir = Some(cloud_control.next_cloud_direction());
     } else {
@@ -271,11 +283,89 @@ fn set_cloud_direction(mut cloud_control: ResMut<CloudControl>, time: Res<Time>)
     }
 }
 
-fn move_clouds(mut cloud_control: ResMut<CloudControl>, time: Res<Time>) {
+fn move_clouds(
+    cloud_control: ResMut<CloudControl>,
+    mut left_query: Query<
+        (&mut GridPos, &mut Transform),
+        (
+            With<LeftCloud>,
+            Without<RightCloud>,
+            Without<UpCloud>,
+            Without<DownCloud>,
+        ),
+    >,
+    mut right_query: Query<
+        (&mut GridPos, &mut Transform),
+        (
+            With<RightCloud>,
+            Without<LeftCloud>,
+            Without<UpCloud>,
+            Without<DownCloud>,
+        ),
+    >,
+    mut up_query: Query<
+        (&mut GridPos, &mut Transform),
+        (
+            With<UpCloud>,
+            Without<RightCloud>,
+            Without<LeftCloud>,
+            Without<DownCloud>,
+        ),
+    >,
+    mut down_query: Query<
+        (&mut GridPos, &mut Transform),
+        (
+            With<DownCloud>,
+            Without<RightCloud>,
+            Without<UpCloud>,
+            Without<LeftCloud>,
+        ),
+    >,
+) {
     // return early if the timer is off or there is no cloud direction set
     if !cloud_control.timer.finished() || cloud_control.cur_cloud_dir.is_none() {
         return;
     }
+    let cloud_dir = cloud_control.cur_cloud_dir.unwrap();
 
-    // let cur_cloud_dir =
+    if cloud_dir == CloudDir::Down {
+        for (mut cloud_pos, mut transfo) in down_query.iter_mut() {
+            cloud_pos.pos[1] += -1i8;
+            transfo.translation = Vec3::new(
+                f32::from(cloud_pos.pos[0]) * TILE_SIZE + TILE_SIZE / 2.,
+                f32::from(cloud_pos.pos[1]) * TILE_SIZE + TILE_SIZE / 2.,
+                CLOUD_LAYER,
+            );
+        }
+    }
+    if cloud_dir == CloudDir::Left {
+        for (mut cloud_pos, mut transfo) in left_query.iter_mut() {
+            cloud_pos.pos[0] += -1i8;
+            transfo.translation = Vec3::new(
+                f32::from(cloud_pos.pos[0]) * TILE_SIZE + TILE_SIZE / 2.,
+                f32::from(cloud_pos.pos[1]) * TILE_SIZE + TILE_SIZE / 2.,
+                CLOUD_LAYER,
+            );
+        }
+    }
+    if cloud_dir == CloudDir::Up {
+        for (mut cloud_pos, mut transfo) in up_query.iter_mut() {
+            cloud_pos.pos[1] += 1i8;
+            transfo.translation = Vec3::new(
+                f32::from(cloud_pos.pos[0]) * TILE_SIZE + TILE_SIZE / 2.,
+                f32::from(cloud_pos.pos[1]) * TILE_SIZE + TILE_SIZE / 2.,
+                CLOUD_LAYER,
+            );
+        }
+    }
+    if cloud_dir == CloudDir::Right {
+        for (mut cloud_pos, mut transfo) in right_query.iter_mut() {
+            cloud_pos.pos[0] += 1i8;
+            transfo.translation = Vec3::new(
+                f32::from(cloud_pos.pos[0]) * TILE_SIZE + TILE_SIZE / 2.,
+                f32::from(cloud_pos.pos[1]) * TILE_SIZE + TILE_SIZE / 2.,
+                CLOUD_LAYER,
+            );
+        }
+    }
 }
