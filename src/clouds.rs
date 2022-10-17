@@ -63,7 +63,7 @@ pub fn new_cloud(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
 ) {
-    if let Some(cloud_dir) = cloud_control.cur_cloud_dir {
+    if let Some(cloud_dir) = cloud_control.cur_new_cloud {
         println!("{} {} {:?}", { "➤ New Cloud".blue() }, { ":".blue() }, {
             cloud_dir
         });
@@ -124,7 +124,7 @@ pub fn new_cloud(
             }
         }
     }
-    cloud_control.cur_cloud_dir = None;
+    cloud_control.cur_new_cloud = None;
 }
 
 // fn update_cloud_pos(mut query: Query<(&GridPos, &mut Transform), With<Cloud>>) {

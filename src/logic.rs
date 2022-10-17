@@ -44,7 +44,8 @@ pub struct PlayerControl {
 
 #[derive(Default)]
 pub struct CloudControl {
-    pub cur_cloud_dir: Option<CloudDir>,
+    pub cur_new_cloud: Option<CloudDir>,
+    pub cur_cloud_move: Option<CloudDir>,
     cur_cloud: CloudDir,
     timer: Timer,
     sequence: [CloudDir; 4],
@@ -68,6 +69,14 @@ impl Default for GridState {
     }
 }
 
+fn grid_to_vec(grid_pos: [i8; 2]) -> Vec3 {
+    Vec3::new(
+        (grid_pos[0]) as f32 * TILE_SIZE - (LEVEL_SIZE as f32) / 2. * TILE_SIZE + 0.5 * TILE_SIZE,
+        (grid_pos[1]) as f32 * TILE_SIZE - (LEVEL_SIZE as f32) / 2. * TILE_SIZE + 0.5 * TILE_SIZE,
+        CLOUD_LAYER,
+    )
+}
+
 impl GridState {
     pub fn new_cloud(&mut self, border: CloudDir) -> Option<(Vec3, [i8; 2])> {
         let line = match border {
@@ -84,44 +93,25 @@ impl GridState {
             .map(|(index, _)| index)
             .collect::<Vec<_>>();
 
+        println!(
+            "{} {} {:?} {:?}",
+            { "➤".blue() },
+            { ":".blue() },
+            { border },
+            { non_occupied.clone() }
+        );
+
         if let Some(ndx) = non_occupied.choose(&mut rand::thread_rng()) {
             line[*ndx] = true;
 
-            let (x, y, xi, yi) = match border {
-                CloudDir::Down => (
-                    ((LEVEL_SIZE - STAGE_WIDTH) as f32 + (*ndx as f32) - 1.5),
-                    LEVEL_SIZE as f32 - 0.5,
-                    (LEVEL_SIZE - STAGE_WIDTH) as i8 + *ndx as i8,
-                    LEVEL_SIZE as i8,
-                ),
-                CloudDir::Left => (
-                    LEVEL_SIZE as f32 - 0.5,
-                    ((LEVEL_SIZE - STAGE_WIDTH) as f32 + (*ndx as f32) - 1.5),
-                    LEVEL_SIZE as i8,
-                    (LEVEL_SIZE - STAGE_WIDTH) as i8 + *ndx as i8,
-                ),
-                CloudDir::Right => (
-                    0.5,
-                    ((LEVEL_SIZE - STAGE_WIDTH) as f32 + (*ndx as f32) - 1.5),
-                    0i8,
-                    (LEVEL_SIZE - STAGE_WIDTH) as i8 + *ndx as i8,
-                ),
-                CloudDir::Up => (
-                    ((LEVEL_SIZE - STAGE_WIDTH) as f32 + (*ndx as f32) - 1.5),
-                    0.5,
-                    (LEVEL_SIZE - STAGE_WIDTH) as i8 + *ndx as i8,
-                    0i8,
-                ),
+            let (xi, yi) = match border {
+                CloudDir::Down => (*ndx as i8 + 3 - 1, LEVEL_SIZE as i8 - 1),
+                CloudDir::Left => (LEVEL_SIZE as i8 - 1, *ndx as i8 + 3 - 1),
+                CloudDir::Right => (0i8, *ndx as i8 + 3 - 1),
+                CloudDir::Up => (*ndx as i8 + 3 - 1, 0i8),
             };
 
-            Some((
-                Vec3 {
-                    x: TILE_SIZE * (x - (LEVEL_SIZE as f32) / 2.),
-                    y: TILE_SIZE * (y - (LEVEL_SIZE as f32) / 2.),
-                    z: CLOUD_LAYER,
-                },
-                [xi, yi],
-            ))
+            Some((grid_to_vec([xi, yi]), [xi, yi]))
         } else {
             None
         }
@@ -165,17 +155,18 @@ impl Plugin for LogicPlugin {
                     .label("move_clouds")
                     .after("tick_clock")
                     .with_system(move_clouds)
-                    .into(),
-            )
-            .add_system_set(
-                ConditionSet::new()
-                    .run_in_state(GameState::Playing)
-                    .after("move_clouds")
-                    .after("tick_clock")
-                    .label("new_cloud")
                     .with_system(clouds::new_cloud)
                     .into(),
             );
+        // .add_system_set(
+        //     ConditionSet::new()
+        //         .run_in_state(GameState::Playing)
+        //         .after("move_clouds")
+        //         .after("tick_clock")
+        //         .label("new_cloud")
+        //         .with_system(clouds::new_cloud)
+        //         .into(),
+        // );
     }
 }
 
@@ -191,7 +182,8 @@ fn set_up_logic(mut commands: Commands) {
     });
     commands.insert_resource(GridState::default());
     commands.insert_resource(CloudControl {
-        cur_cloud_dir: None,
+        cur_new_cloud: None,
+        cur_cloud_move: None,
         timer: Timer::from_seconds(CLOUD_TIMER, true),
         cur_cloud: CloudDir::Left,
         sequence: [
@@ -296,14 +288,18 @@ fn tick_timer(mut cloud_control: ResMut<CloudControl>, time: Res<Time>) {
 
 fn set_cloud_direction(mut cloud_control: ResMut<CloudControl>) {
     if cloud_control.timer.finished() {
-        println!("{} {} {:?}", { "➤".blue() }, { "New Dir:".blue() }, {});
-        cloud_control.cur_cloud_dir = Some(cloud_control.next_cloud_direction());
+        let cloud_dir = Some(cloud_control.next_cloud_direction());
+        println!("{} {} {:?}", { "➤".blue() }, { "New Dir:".blue() }, {
+            cloud_dir.clone()
+        });
+        cloud_control.cur_new_cloud = cloud_dir.clone();
+        cloud_control.cur_cloud_move = cloud_dir;
     }
 }
 
 // WIP: somehow the clouds position on the grid seems ok, but not moving the right sprites
 fn move_clouds(
-    cloud_control: Res<CloudControl>,
+    mut cloud_control: ResMut<CloudControl>,
     mut left_query: Query<
         (&mut GridPos, &mut Transform),
         (
@@ -343,10 +339,10 @@ fn move_clouds(
 ) {
     // println!("{} {} {:?}", { "➤".blue() }, { "Enter move:".blue() }, {});
     // return early if the timer is off or there is no cloud direction set
-    if !cloud_control.timer.finished() || cloud_control.cur_cloud_dir.is_none() {
+    if cloud_control.cur_cloud_move.is_none() {
         return;
     }
-    let cloud_dir = cloud_control.cur_cloud_dir.unwrap();
+    let cloud_dir = cloud_control.cur_cloud_move.unwrap();
     println!("{} {} {:?}", { "➤".red() }, { "Move cloud:".red() }, {
         cloud_dir.clone()
     });
@@ -360,44 +356,34 @@ fn move_clouds(
             println!("{} {} {:?}", { "➤".red() }, { "down:".red() }, {
                 cloud_pos.pos.clone()
             });
-            transfo.translation = Vec3::new(
-                f32::from(cloud_pos.pos[0]) * TILE_SIZE + TILE_SIZE / 2.,
-                f32::from(cloud_pos.pos[1]) * TILE_SIZE + TILE_SIZE / 2.,
-                CLOUD_LAYER,
-            );
+            transfo.translation = grid_to_vec(cloud_pos.pos);
         }
     }
     if cloud_dir == CloudDir::Left {
         for (mut cloud_pos, mut transfo) in left_query.iter_mut() {
             println!("{} {} {:?}", { "➤".red() }, { "left:".red() }, {});
             cloud_pos.pos[0] += -1i8;
-            transfo.translation = Vec3::new(
-                f32::from(cloud_pos.pos[0]) * TILE_SIZE + TILE_SIZE / 2.,
-                f32::from(cloud_pos.pos[1]) * TILE_SIZE + TILE_SIZE / 2.,
-                CLOUD_LAYER,
-            );
+            transfo.translation = grid_to_vec(cloud_pos.pos);
         }
     }
     if cloud_dir == CloudDir::Up {
         for (mut cloud_pos, mut transfo) in up_query.iter_mut() {
-            println!("{} {} {:?}", { "➤".red() }, { "up:".red() }, {});
+            println!("{} {} {:?}", { "➤".red() }, { "up:".red() }, {
+                cloud_pos.pos.clone()
+            });
             cloud_pos.pos[1] += 1i8;
-            transfo.translation = Vec3::new(
-                f32::from(cloud_pos.pos[0]) * TILE_SIZE + TILE_SIZE / 2.,
-                f32::from(cloud_pos.pos[1]) * TILE_SIZE + TILE_SIZE / 2.,
-                CLOUD_LAYER,
-            );
+            println!("{} {} {:?}", { "➤".red() }, { "up:".red() }, {
+                cloud_pos.pos.clone()
+            });
+            transfo.translation = grid_to_vec(cloud_pos.pos);
         }
     }
     if cloud_dir == CloudDir::Right {
         for (mut cloud_pos, mut transfo) in right_query.iter_mut() {
             println!("{} {} {:?}", { "➤".red() }, { "right:".red() }, {});
             cloud_pos.pos[0] += 1i8;
-            transfo.translation = Vec3::new(
-                f32::from(cloud_pos.pos[0]) * TILE_SIZE + TILE_SIZE / 2.,
-                f32::from(cloud_pos.pos[1]) * TILE_SIZE + TILE_SIZE / 2.,
-                CLOUD_LAYER,
-            );
+            transfo.translation = grid_to_vec(cloud_pos.pos);
         }
     }
+    cloud_control.cur_cloud_move = None;
 }
