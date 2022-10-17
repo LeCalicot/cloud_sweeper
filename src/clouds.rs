@@ -43,28 +43,28 @@ pub enum CloudDir {
     Right,
 }
 
-impl Plugin for CloudPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_system_set(
-            ConditionSet::new()
-                .run_in_state(GameState::Playing)
-                .with_system(new_cloud)
-                // .with_system(update_cloud_pos)
-                .into(),
-        );
-    }
-}
+// impl Plugin for CloudPlugin {
+//     fn build(&self, app: &mut App) {
+//         app.add_system_set(
+//             ConditionSet::new()
+//                 .run_in_state(GameState::Playing)
+//                 .with_system(new_cloud)
+//                 // .with_system(update_cloud_pos)
+//                 .into(),
+//         );
+//     }
+// }
 
 // WIP:initialize the position in the grid when inserting Cloud
 
-fn new_cloud(
-    cloud_control: ResMut<CloudControl>,
+pub fn new_cloud(
+    mut cloud_control: ResMut<CloudControl>,
     mut grid_state: ResMut<GridState>,
     mut commands: Commands,
     asset_server: Res<AssetServer>,
 ) {
     if let Some(cloud_dir) = cloud_control.cur_cloud_dir {
-        println!("{} {} {:?}", { "➤".blue() }, { ":".blue() }, {
+        println!("{} {} {:?}", { "➤ New Cloud".blue() }, { ":".blue() }, {
             cloud_dir
         });
 
@@ -124,6 +124,7 @@ fn new_cloud(
             }
         }
     }
+    cloud_control.cur_cloud_dir = None;
 }
 
 // fn update_cloud_pos(mut query: Query<(&GridPos, &mut Transform), With<Cloud>>) {

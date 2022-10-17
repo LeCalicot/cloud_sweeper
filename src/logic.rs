@@ -152,9 +152,28 @@ impl Plugin for LogicPlugin {
             .add_system_set(
                 ConditionSet::new()
                     .run_in_state(GameState::Playing)
+                    .label("tick_clock")
+                    .before("move_clouds")
+                    .before("new_cloud")
                     .with_system(tick_timer)
                     .with_system(set_cloud_direction)
+                    .into(),
+            )
+            .add_system_set(
+                ConditionSet::new()
+                    .run_in_state(GameState::Playing)
+                    .label("move_clouds")
+                    .after("tick_clock")
                     .with_system(move_clouds)
+                    .into(),
+            )
+            .add_system_set(
+                ConditionSet::new()
+                    .run_in_state(GameState::Playing)
+                    .after("move_clouds")
+                    .after("tick_clock")
+                    .label("new_cloud")
+                    .with_system(clouds::new_cloud)
                     .into(),
             );
     }
@@ -277,14 +296,14 @@ fn tick_timer(mut cloud_control: ResMut<CloudControl>, time: Res<Time>) {
 
 fn set_cloud_direction(mut cloud_control: ResMut<CloudControl>) {
     if cloud_control.timer.finished() {
+        println!("{} {} {:?}", { "➤".blue() }, { "New Dir:".blue() }, {});
         cloud_control.cur_cloud_dir = Some(cloud_control.next_cloud_direction());
-    } else {
-        cloud_control.cur_cloud_dir = None;
     }
 }
 
+// WIP: somehow the clouds position on the grid seems ok, but not moving the right sprites
 fn move_clouds(
-    cloud_control: ResMut<CloudControl>,
+    cloud_control: Res<CloudControl>,
     mut left_query: Query<
         (&mut GridPos, &mut Transform),
         (
@@ -322,15 +341,25 @@ fn move_clouds(
         ),
     >,
 ) {
+    // println!("{} {} {:?}", { "➤".blue() }, { "Enter move:".blue() }, {});
     // return early if the timer is off or there is no cloud direction set
     if !cloud_control.timer.finished() || cloud_control.cur_cloud_dir.is_none() {
         return;
     }
     let cloud_dir = cloud_control.cur_cloud_dir.unwrap();
+    println!("{} {} {:?}", { "➤".red() }, { "Move cloud:".red() }, {
+        cloud_dir.clone()
+    });
 
     if cloud_dir == CloudDir::Down {
         for (mut cloud_pos, mut transfo) in down_query.iter_mut() {
+            println!("{} {} {:?}", { "➤".red() }, { "down:".red() }, {
+                cloud_pos.pos.clone()
+            });
             cloud_pos.pos[1] += -1i8;
+            println!("{} {} {:?}", { "➤".red() }, { "down:".red() }, {
+                cloud_pos.pos.clone()
+            });
             transfo.translation = Vec3::new(
                 f32::from(cloud_pos.pos[0]) * TILE_SIZE + TILE_SIZE / 2.,
                 f32::from(cloud_pos.pos[1]) * TILE_SIZE + TILE_SIZE / 2.,
@@ -340,6 +369,7 @@ fn move_clouds(
     }
     if cloud_dir == CloudDir::Left {
         for (mut cloud_pos, mut transfo) in left_query.iter_mut() {
+            println!("{} {} {:?}", { "➤".red() }, { "left:".red() }, {});
             cloud_pos.pos[0] += -1i8;
             transfo.translation = Vec3::new(
                 f32::from(cloud_pos.pos[0]) * TILE_SIZE + TILE_SIZE / 2.,
@@ -350,6 +380,7 @@ fn move_clouds(
     }
     if cloud_dir == CloudDir::Up {
         for (mut cloud_pos, mut transfo) in up_query.iter_mut() {
+            println!("{} {} {:?}", { "➤".red() }, { "up:".red() }, {});
             cloud_pos.pos[1] += 1i8;
             transfo.translation = Vec3::new(
                 f32::from(cloud_pos.pos[0]) * TILE_SIZE + TILE_SIZE / 2.,
@@ -360,6 +391,7 @@ fn move_clouds(
     }
     if cloud_dir == CloudDir::Right {
         for (mut cloud_pos, mut transfo) in right_query.iter_mut() {
+            println!("{} {} {:?}", { "➤".red() }, { "right:".red() }, {});
             cloud_pos.pos[0] += 1i8;
             transfo.translation = Vec3::new(
                 f32::from(cloud_pos.pos[0]) * TILE_SIZE + TILE_SIZE / 2.,
