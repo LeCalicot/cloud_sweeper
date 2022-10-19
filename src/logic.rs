@@ -52,19 +52,13 @@ pub struct CloudControl {
 }
 
 pub struct GridState {
-    left_col: [bool; STAGE_WIDTH as usize],
-    right_col: [bool; STAGE_WIDTH as usize],
-    up_row: [bool; STAGE_WIDTH as usize],
-    down_row: [bool; STAGE_WIDTH as usize],
+    grid: [[bool; LEVEL_SIZE as usize]; LEVEL_SIZE as usize],
 }
 
 impl Default for GridState {
     fn default() -> Self {
         GridState {
-            left_col: [false; STAGE_WIDTH as usize],
-            right_col: [false; STAGE_WIDTH as usize],
-            up_row: [false; STAGE_WIDTH as usize],
-            down_row: [false; STAGE_WIDTH as usize],
+            grid: [[false; LEVEL_SIZE as usize]; LEVEL_SIZE as usize],
         }
     }
 }
@@ -78,20 +72,68 @@ fn grid_to_vec(grid_pos: [i8; 2]) -> Vec3 {
 }
 
 impl GridState {
+    fn up_row(&self) -> [[i8; 2]; STAGE_WIDTH as usize] {
+        let mut res = [[0i8, 0i8]; STAGE_WIDTH as usize];
+        for (ndx, i) in (((LEVEL_SIZE - STAGE_WIDTH) / 2)
+            ..=(LEVEL_SIZE - (LEVEL_SIZE - STAGE_WIDTH) / 2) - 1)
+            .enumerate()
+        {
+            println!(
+                "{} {} {:?} {:?}",
+                { "➤".blue() },
+                { ":".blue() },
+                { ndx },
+                { i }
+            );
+            res[ndx][0] = i as i8;
+            res[ndx][1] = (LEVEL_SIZE - 1) as i8;
+        }
+        res
+    }
+    fn down_row(&self) -> [[i8; 2]; STAGE_WIDTH as usize] {
+        let mut res = [[0i8, 0i8]; STAGE_WIDTH as usize];
+        for (ndx, i) in (((LEVEL_SIZE - STAGE_WIDTH) / 2)
+            ..=(LEVEL_SIZE - (LEVEL_SIZE - STAGE_WIDTH) / 2) - 1)
+            .enumerate()
+        {
+            res[ndx][0] = i as i8;
+            res[ndx][1] = 0i8;
+        }
+        res
+    }
+    fn left_col(&self) -> [[i8; 2]; STAGE_WIDTH as usize] {
+        let mut res = [[0i8, 0i8]; STAGE_WIDTH as usize];
+        for (ndx, i) in (((LEVEL_SIZE - STAGE_WIDTH) / 2)
+            ..=(LEVEL_SIZE - (LEVEL_SIZE - STAGE_WIDTH) / 2) - 1)
+            .enumerate()
+        {
+            res[ndx][0] = 0i8;
+            res[ndx][1] = i as i8;
+        }
+        res
+    }
+    fn right_col(&self) -> [[i8; 2]; STAGE_WIDTH as usize] {
+        let mut res = [[0i8, 0i8]; STAGE_WIDTH as usize];
+        for (ndx, i) in (((LEVEL_SIZE - STAGE_WIDTH) / 2)
+            ..=(LEVEL_SIZE - (LEVEL_SIZE - STAGE_WIDTH) / 2) - 1)
+            .enumerate()
+        {
+            res[ndx][0] = (LEVEL_SIZE - 1) as i8;
+            res[ndx][1] = i as i8;
+        }
+        res
+    }
+
     pub fn new_cloud(&mut self, border: CloudDir) -> Option<(Vec3, [i8; 2])> {
         let line = match border {
-            CloudDir::Down => &mut self.up_row,
-            CloudDir::Left => &mut self.right_col,
-            CloudDir::Right => &mut self.left_col,
-            CloudDir::Up => &mut self.down_row,
+            CloudDir::Down => self.up_row(),
+            CloudDir::Left => self.right_col(),
+            CloudDir::Right => self.left_col(),
+            CloudDir::Up => self.down_row(),
         };
 
-        let non_occupied = line
-            .iter()
-            .enumerate()
-            .filter(|(_, &v)| !v)
-            .map(|(index, _)| index)
-            .collect::<Vec<_>>();
+        let non_occupied: Vec<[i8; 2]> =
+            line.into_iter().filter(|v| !self.is_occupied(*v)).collect();
 
         println!(
             "{} {} {:?} {:?}",
@@ -101,20 +143,40 @@ impl GridState {
             { non_occupied.clone() }
         );
 
-        if let Some(ndx) = non_occupied.choose(&mut rand::thread_rng()) {
-            line[*ndx] = true;
-
-            let (xi, yi) = match border {
-                CloudDir::Down => (*ndx as i8 + 3 - 1, LEVEL_SIZE as i8 - 1),
-                CloudDir::Left => (LEVEL_SIZE as i8 - 1, *ndx as i8 + 3 - 1),
-                CloudDir::Right => (0i8, *ndx as i8 + 3 - 1),
-                CloudDir::Up => (*ndx as i8 + 3 - 1, 0i8),
-            };
-
-            Some((grid_to_vec([xi, yi]), [xi, yi]))
+        if let Some(pos) = non_occupied.choose(&mut rand::thread_rng()) {
+            // Add the cloud to the grid
+            self.populate_tile(*pos);
+            Some((grid_to_vec(*pos), *pos))
         } else {
             None
         }
+    }
+
+    /// Spawn something on the tile, it becomes occupied
+    fn populate_tile(&mut self, target_tile: [i8; 2]) {
+        self.grid[target_tile[0] as usize][target_tile[1] as usize] = true;
+    }
+
+    /// Remove the entity from the previous tile and bring it to the new tile
+    ///
+    /// Return: whether to despawn the cloud
+    fn move_on_grid(&mut self, source_tile: [i8; 2], target_tile: [i8; 2]) -> bool {
+        self.grid[source_tile[0] as usize][source_tile[1] as usize] = false;
+        if 0 < target_tile[0]
+            && target_tile[0] < LEVEL_SIZE as i8
+            && 0 < target_tile[1]
+            && target_tile[1] < LEVEL_SIZE as i8
+        {
+            self.grid[target_tile[0] as usize][target_tile[1] as usize] = true;
+            false
+        } else {
+            true
+        }
+    }
+
+    /// Check whether the tile is occupied
+    fn is_occupied(&self, tile: [i8; 2]) -> bool {
+        self.grid[tile[0] as usize][tile[1] as usize]
     }
 }
 
@@ -297,11 +359,12 @@ fn set_cloud_direction(mut cloud_control: ResMut<CloudControl>) {
     }
 }
 
-// WIP: somehow the clouds position on the grid seems ok, but not moving the right sprites
 fn move_clouds(
+    mut commands: Commands,
     mut cloud_control: ResMut<CloudControl>,
+    mut grid_state: ResMut<GridState>,
     mut left_query: Query<
-        (&mut GridPos, &mut Transform),
+        (&mut GridPos, &mut Transform, Entity),
         (
             With<LeftCloud>,
             Without<RightCloud>,
@@ -310,7 +373,7 @@ fn move_clouds(
         ),
     >,
     mut right_query: Query<
-        (&mut GridPos, &mut Transform),
+        (&mut GridPos, &mut Transform, Entity),
         (
             With<RightCloud>,
             Without<LeftCloud>,
@@ -319,7 +382,7 @@ fn move_clouds(
         ),
     >,
     mut up_query: Query<
-        (&mut GridPos, &mut Transform),
+        (&mut GridPos, &mut Transform, Entity),
         (
             With<UpCloud>,
             Without<RightCloud>,
@@ -328,7 +391,7 @@ fn move_clouds(
         ),
     >,
     mut down_query: Query<
-        (&mut GridPos, &mut Transform),
+        (&mut GridPos, &mut Transform, Entity),
         (
             With<DownCloud>,
             Without<RightCloud>,
@@ -348,41 +411,65 @@ fn move_clouds(
     });
 
     if cloud_dir == CloudDir::Down {
-        for (mut cloud_pos, mut transfo) in down_query.iter_mut() {
+        for (mut cloud_pos, mut transfo, entity) in down_query.iter_mut() {
             println!("{} {} {:?}", { "➤".red() }, { "down:".red() }, {
                 cloud_pos.pos.clone()
             });
-            cloud_pos.pos[1] += -1i8;
-            println!("{} {} {:?}", { "➤".red() }, { "down:".red() }, {
-                cloud_pos.pos.clone()
-            });
-            transfo.translation = grid_to_vec(cloud_pos.pos);
+            let despawn =
+                grid_state.move_on_grid(cloud_pos.pos, [cloud_pos.pos[0], cloud_pos.pos[1] - 1i8]);
+            if despawn {
+                commands.entity(entity).despawn()
+            } else {
+                cloud_pos.pos[1] += -1i8;
+                println!("{} {} {:?}", { "➤".red() }, { "down:".red() }, {
+                    cloud_pos.pos.clone()
+                });
+                transfo.translation = grid_to_vec(cloud_pos.pos);
+            }
         }
     }
     if cloud_dir == CloudDir::Left {
-        for (mut cloud_pos, mut transfo) in left_query.iter_mut() {
+        for (mut cloud_pos, mut transfo, entity) in left_query.iter_mut() {
             println!("{} {} {:?}", { "➤".red() }, { "left:".red() }, {});
-            cloud_pos.pos[0] += -1i8;
-            transfo.translation = grid_to_vec(cloud_pos.pos);
+            let despawn =
+                grid_state.move_on_grid(cloud_pos.pos, [cloud_pos.pos[0] - 1i8, cloud_pos.pos[1]]);
+            if despawn {
+                commands.entity(entity).despawn()
+            } else {
+                cloud_pos.pos[0] += -1i8;
+                transfo.translation = grid_to_vec(cloud_pos.pos);
+            }
         }
     }
     if cloud_dir == CloudDir::Up {
-        for (mut cloud_pos, mut transfo) in up_query.iter_mut() {
+        for (mut cloud_pos, mut transfo, entity) in up_query.iter_mut() {
             println!("{} {} {:?}", { "➤".red() }, { "up:".red() }, {
                 cloud_pos.pos.clone()
             });
-            cloud_pos.pos[1] += 1i8;
-            println!("{} {} {:?}", { "➤".red() }, { "up:".red() }, {
-                cloud_pos.pos.clone()
-            });
-            transfo.translation = grid_to_vec(cloud_pos.pos);
+            let despawn =
+                grid_state.move_on_grid(cloud_pos.pos, [cloud_pos.pos[0], cloud_pos.pos[1] + 1i8]);
+            if despawn {
+                commands.entity(entity).despawn()
+            } else {
+                cloud_pos.pos[1] += 1i8;
+                println!("{} {} {:?}", { "➤".red() }, { "up:".red() }, {
+                    cloud_pos.pos.clone()
+                });
+                transfo.translation = grid_to_vec(cloud_pos.pos);
+            }
         }
     }
     if cloud_dir == CloudDir::Right {
-        for (mut cloud_pos, mut transfo) in right_query.iter_mut() {
+        for (mut cloud_pos, mut transfo, entity) in right_query.iter_mut() {
             println!("{} {} {:?}", { "➤".red() }, { "right:".red() }, {});
-            cloud_pos.pos[0] += 1i8;
-            transfo.translation = grid_to_vec(cloud_pos.pos);
+            let despawn =
+                grid_state.move_on_grid(cloud_pos.pos, [cloud_pos.pos[0] + 1i8, cloud_pos.pos[1]]);
+            if despawn {
+                commands.entity(entity).despawn()
+            } else {
+                cloud_pos.pos[0] += 1i8;
+                transfo.translation = grid_to_vec(cloud_pos.pos);
+            }
         }
     }
     cloud_control.cur_cloud_move = None;
