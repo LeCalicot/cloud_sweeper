@@ -64,10 +64,6 @@ pub fn new_cloud(
     asset_server: Res<AssetServer>,
 ) {
     if let Some(cloud_dir) = cloud_control.cur_new_cloud {
-        println!("{} {} {:?}", { "➤ New Cloud".blue() }, { ":".blue() }, {
-            cloud_dir
-        });
-
         // Spawn a new cloud, with a sprite bundle, associate the direction
         if let Some((cloud_pos_vec, cloud_pos_grid)) = grid_state.new_cloud(cloud_dir) {
             if cloud_dir == CloudDir::Down {

@@ -78,13 +78,6 @@ impl GridState {
             ..=(LEVEL_SIZE - (LEVEL_SIZE - STAGE_WIDTH) / 2) - 1)
             .enumerate()
         {
-            println!(
-                "{} {} {:?} {:?}",
-                { "➤".blue() },
-                { ":".blue() },
-                { ndx },
-                { i }
-            );
             res[ndx][0] = i as i8;
             res[ndx][1] = (LEVEL_SIZE - 1) as i8;
         }
@@ -134,14 +127,6 @@ impl GridState {
 
         let non_occupied: Vec<[i8; 2]> =
             line.into_iter().filter(|v| !self.is_occupied(*v)).collect();
-
-        println!(
-            "{} {} {:?} {:?}",
-            { "➤".blue() },
-            { ":".blue() },
-            { border },
-            { non_occupied.clone() }
-        );
 
         if let Some(pos) = non_occupied.choose(&mut rand::thread_rng()) {
             // Add the cloud to the grid
@@ -400,37 +385,36 @@ fn move_clouds(
         ),
     >,
 ) {
-    // println!("{} {} {:?}", { "➤".blue() }, { "Enter move:".blue() }, {});
     // return early if the timer is off or there is no cloud direction set
     if cloud_control.cur_cloud_move.is_none() {
         return;
     }
     let cloud_dir = cloud_control.cur_cloud_move.unwrap();
-    println!("{} {} {:?}", { "➤".red() }, { "Move cloud:".red() }, {
-        cloud_dir.clone()
-    });
 
     if cloud_dir == CloudDir::Down {
         for (mut cloud_pos, mut transfo, entity) in down_query.iter_mut() {
-            println!("{} {} {:?}", { "➤".red() }, { "down:".red() }, {
-                cloud_pos.pos.clone()
-            });
+            let next_tile_occupied =
+                grid_state.is_occupied([cloud_pos.pos[0], cloud_pos.pos[1] - 1i8]);
+            if next_tile_occupied {
+                continue;
+            }
             let despawn =
                 grid_state.move_on_grid(cloud_pos.pos, [cloud_pos.pos[0], cloud_pos.pos[1] - 1i8]);
             if despawn {
                 commands.entity(entity).despawn()
             } else {
                 cloud_pos.pos[1] += -1i8;
-                println!("{} {} {:?}", { "➤".red() }, { "down:".red() }, {
-                    cloud_pos.pos.clone()
-                });
                 transfo.translation = grid_to_vec(cloud_pos.pos);
             }
         }
     }
     if cloud_dir == CloudDir::Left {
         for (mut cloud_pos, mut transfo, entity) in left_query.iter_mut() {
-            println!("{} {} {:?}", { "➤".red() }, { "left:".red() }, {});
+            let next_tile_occupied =
+                grid_state.is_occupied([cloud_pos.pos[0] - 1i8, cloud_pos.pos[1]]);
+            if next_tile_occupied {
+                continue;
+            }
             let despawn =
                 grid_state.move_on_grid(cloud_pos.pos, [cloud_pos.pos[0] - 1i8, cloud_pos.pos[1]]);
             if despawn {
@@ -443,25 +427,28 @@ fn move_clouds(
     }
     if cloud_dir == CloudDir::Up {
         for (mut cloud_pos, mut transfo, entity) in up_query.iter_mut() {
-            println!("{} {} {:?}", { "➤".red() }, { "up:".red() }, {
-                cloud_pos.pos.clone()
-            });
+            let next_tile_occupied =
+                grid_state.is_occupied([cloud_pos.pos[0], cloud_pos.pos[1] + 1i8]);
+            if next_tile_occupied {
+                continue;
+            }
             let despawn =
                 grid_state.move_on_grid(cloud_pos.pos, [cloud_pos.pos[0], cloud_pos.pos[1] + 1i8]);
             if despawn {
                 commands.entity(entity).despawn()
             } else {
                 cloud_pos.pos[1] += 1i8;
-                println!("{} {} {:?}", { "➤".red() }, { "up:".red() }, {
-                    cloud_pos.pos.clone()
-                });
                 transfo.translation = grid_to_vec(cloud_pos.pos);
             }
         }
     }
     if cloud_dir == CloudDir::Right {
         for (mut cloud_pos, mut transfo, entity) in right_query.iter_mut() {
-            println!("{} {} {:?}", { "➤".red() }, { "right:".red() }, {});
+            let next_tile_occupied =
+                grid_state.is_occupied([cloud_pos.pos[0] + 1i8, cloud_pos.pos[1]]);
+            if next_tile_occupied {
+                continue;
+            }
             let despawn =
                 grid_state.move_on_grid(cloud_pos.pos, [cloud_pos.pos[0] + 1i8, cloud_pos.pos[1]]);
             if despawn {
