@@ -58,7 +58,10 @@ pub enum TileOccupation {
     #[default]
     Empty,
     Player,
-    Cloud,
+    LeftCloud,
+    RightCloud,
+    UpCloud,
+    DownCloud,
 }
 
 pub struct GridState {
@@ -140,7 +143,15 @@ impl GridState {
 
         if let Some(pos) = non_occupied.choose(&mut rand::thread_rng()) {
             // Add the cloud to the grid
-            self.populate_tile_with_cloud(*pos, TileOccupation::Cloud);
+            self.populate_tile_with_cloud(
+                *pos,
+                match border {
+                    CloudDir::Down => TileOccupation::DownCloud,
+                    CloudDir::Up => TileOccupation::UpCloud,
+                    CloudDir::Left => TileOccupation::LeftCloud,
+                    CloudDir::Right => TileOccupation::RightCloud,
+                },
+            );
             Some((grid_to_vec(*pos), *pos))
         } else {
             None
@@ -176,10 +187,10 @@ impl GridState {
 
     /// Check whether the tile is occupied
     fn is_occupied(&self, tile: [i8; 2]) -> bool {
-        match self.grid[tile[0] as usize][tile[1] as usize] {
-            TileOccupation::Empty => false,
-            _ => true,
-        }
+        !matches!(
+            self.grid[tile[0] as usize][tile[1] as usize],
+            TileOccupation::Empty
+        )
     }
 }
 
@@ -223,15 +234,6 @@ impl Plugin for LogicPlugin {
                     .with_system(clouds::new_cloud)
                     .into(),
             );
-        // .add_system_set(
-        //     ConditionSet::new()
-        //         .run_in_state(GameState::Playing)
-        //         .after("move_clouds")
-        //         .after("tick_clock")
-        //         .label("new_cloud")
-        //         .with_system(clouds::new_cloud)
-        //         .into(),
-        // );
     }
 }
 
@@ -419,7 +421,7 @@ fn move_clouds(
             let despawn = grid_state.move_on_grid(
                 cloud_pos.pos,
                 [cloud_pos.pos[0], cloud_pos.pos[1] - 1i8],
-                TileOccupation::Cloud,
+                TileOccupation::DownCloud,
             );
             if despawn {
                 commands.entity(entity).despawn()
@@ -439,7 +441,7 @@ fn move_clouds(
             let despawn = grid_state.move_on_grid(
                 cloud_pos.pos,
                 [cloud_pos.pos[0] - 1i8, cloud_pos.pos[1]],
-                TileOccupation::Cloud,
+                TileOccupation::LeftCloud,
             );
             if despawn {
                 commands.entity(entity).despawn()
@@ -459,7 +461,7 @@ fn move_clouds(
             let despawn = grid_state.move_on_grid(
                 cloud_pos.pos,
                 [cloud_pos.pos[0], cloud_pos.pos[1] + 1i8],
-                TileOccupation::Cloud,
+                TileOccupation::UpCloud,
             );
             if despawn {
                 commands.entity(entity).despawn()
@@ -479,7 +481,7 @@ fn move_clouds(
             let despawn = grid_state.move_on_grid(
                 cloud_pos.pos,
                 [cloud_pos.pos[0] + 1i8, cloud_pos.pos[1]],
-                TileOccupation::Cloud,
+                TileOccupation::RightCloud,
             );
             if despawn {
                 commands.entity(entity).despawn()
