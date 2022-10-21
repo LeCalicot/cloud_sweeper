@@ -11,6 +11,8 @@ use cloud_sweeper::GamePlugin;
 use std::io::Cursor;
 use winit::window::Icon;
 
+// FIXME: it seems that clouds disappear on tile n=1 on the left of clouds going left
+
 fn main() {
     App::new()
         .insert_resource(Msaa { samples: 1 })

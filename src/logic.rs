@@ -233,6 +233,14 @@ impl Plugin for LogicPlugin {
                     .with_system(move_clouds)
                     .with_system(clouds::new_cloud)
                     .into(),
+            )
+            .add_system_set(
+                ConditionSet::new()
+                    .run_in_state(GameState::Playing)
+                    .label("update_sprites")
+                    .after("move_clouds")
+                    .with_system(update_cloud_pos)
+                    .into(),
             );
     }
 }
@@ -366,7 +374,7 @@ fn set_cloud_direction(mut cloud_control: ResMut<CloudControl>) {
 
 fn move_clouds(
     mut commands: Commands,
-    mut cloud_control: ResMut<CloudControl>,
+    cloud_control: ResMut<CloudControl>,
     mut grid_state: ResMut<GridState>,
     mut left_query: Query<
         (&mut GridPos, &mut Transform, Entity),
@@ -427,7 +435,7 @@ fn move_clouds(
                 commands.entity(entity).despawn()
             } else {
                 cloud_pos.pos[1] += -1i8;
-                transfo.translation = grid_to_vec(cloud_pos.pos);
+                // transfo.translation = grid_to_vec(cloud_pos.pos);
             }
         }
     }
@@ -447,7 +455,7 @@ fn move_clouds(
                 commands.entity(entity).despawn()
             } else {
                 cloud_pos.pos[0] += -1i8;
-                transfo.translation = grid_to_vec(cloud_pos.pos);
+                // transfo.translation = grid_to_vec(cloud_pos.pos);
             }
         }
     }
@@ -467,7 +475,7 @@ fn move_clouds(
                 commands.entity(entity).despawn()
             } else {
                 cloud_pos.pos[1] += 1i8;
-                transfo.translation = grid_to_vec(cloud_pos.pos);
+                // transfo.translation = grid_to_vec(cloud_pos.pos);
             }
         }
     }
@@ -487,8 +495,76 @@ fn move_clouds(
                 commands.entity(entity).despawn()
             } else {
                 cloud_pos.pos[0] += 1i8;
-                transfo.translation = grid_to_vec(cloud_pos.pos);
+                // transfo.translation = grid_to_vec(cloud_pos.pos);
             }
+        }
+    }
+    // cloud_control.cur_cloud_move = None;
+}
+
+fn update_cloud_pos(
+    mut cloud_control: ResMut<CloudControl>,
+    mut left_query: Query<
+        (&mut GridPos, &mut Transform),
+        (
+            With<LeftCloud>,
+            Without<RightCloud>,
+            Without<UpCloud>,
+            Without<DownCloud>,
+        ),
+    >,
+    mut right_query: Query<
+        (&mut GridPos, &mut Transform),
+        (
+            With<RightCloud>,
+            Without<LeftCloud>,
+            Without<UpCloud>,
+            Without<DownCloud>,
+        ),
+    >,
+    mut up_query: Query<
+        (&mut GridPos, &mut Transform),
+        (
+            With<UpCloud>,
+            Without<RightCloud>,
+            Without<LeftCloud>,
+            Without<DownCloud>,
+        ),
+    >,
+    mut down_query: Query<
+        (&mut GridPos, &mut Transform),
+        (
+            With<DownCloud>,
+            Without<RightCloud>,
+            Without<UpCloud>,
+            Without<LeftCloud>,
+        ),
+    >,
+) {
+    // return early if the timer is off or there is no cloud direction set
+    if cloud_control.cur_cloud_move.is_none() {
+        return;
+    }
+    let cloud_dir = cloud_control.cur_cloud_move.unwrap();
+
+    if cloud_dir == CloudDir::Down {
+        for (cloud_pos, mut transfo) in down_query.iter_mut() {
+            transfo.translation = grid_to_vec(cloud_pos.pos);
+        }
+    }
+    if cloud_dir == CloudDir::Left {
+        for (cloud_pos, mut transfo) in left_query.iter_mut() {
+            transfo.translation = grid_to_vec(cloud_pos.pos);
+        }
+    }
+    if cloud_dir == CloudDir::Up {
+        for (cloud_pos, mut transfo) in up_query.iter_mut() {
+            transfo.translation = grid_to_vec(cloud_pos.pos);
+        }
+    }
+    if cloud_dir == CloudDir::Right {
+        for (cloud_pos, mut transfo) in right_query.iter_mut() {
+            transfo.translation = grid_to_vec(cloud_pos.pos);
         }
     }
     cloud_control.cur_cloud_move = None;
