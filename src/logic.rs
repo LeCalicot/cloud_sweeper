@@ -62,6 +62,7 @@ pub enum TileOccupation {
     RightCloud,
     UpCloud,
     DownCloud,
+    Despawn,
 }
 
 pub struct GridState {
@@ -130,6 +131,10 @@ impl GridState {
         res
     }
 
+    pub fn is_out_of_range(&self, tile: [i8; 2]) -> bool {
+        0 > tile[0] || tile[0] >= LEVEL_SIZE as i8 || 0 > tile[1] || tile[1] >= LEVEL_SIZE as i8
+    }
+
     pub fn new_cloud(&mut self, border: CloudDir) -> Option<(Vec3, [i8; 2])> {
         let line = match border {
             CloudDir::Down => self.up_row(),
@@ -166,27 +171,21 @@ impl GridState {
     /// Remove the entity from the previous tile and bring it to the new tile
     ///
     /// Return: whether to despawn the cloud
-    fn move_on_grid(
-        &mut self,
-        source_tile: [i8; 2],
-        target_tile: [i8; 2],
-        object: TileOccupation,
-    ) -> bool {
-        self.grid[source_tile[0] as usize][source_tile[1] as usize] = TileOccupation::Empty;
-        if 0 < target_tile[0]
-            && target_tile[0] < LEVEL_SIZE as i8
-            && 0 < target_tile[1]
-            && target_tile[1] < LEVEL_SIZE as i8
-        {
-            self.grid[target_tile[0] as usize][target_tile[1] as usize] = object;
-            false
+    fn move_on_grid(&mut self, source_tile: [i8; 2], target_tile: [i8; 2], object: TileOccupation) {
+        if self.is_out_of_range(target_tile) {
+            self.grid[source_tile[0] as usize][source_tile[1] as usize] = TileOccupation::Despawn;
         } else {
-            true
+            self.grid[source_tile[0] as usize][source_tile[1] as usize] = TileOccupation::Empty;
+            self.grid[target_tile[0] as usize][target_tile[1] as usize] = object;
         }
     }
 
     /// Check whether the tile is occupied
     fn is_occupied(&self, tile: [i8; 2]) -> bool {
+        if self.is_out_of_range(tile) {
+            return false;
+        }
+        println!("{} {} {:?}", { "➤".red() }, { "AAA:".red() }, { tile });
         !matches!(
             self.grid[tile[0] as usize][tile[1] as usize],
             TileOccupation::Empty
@@ -240,6 +239,7 @@ impl Plugin for LogicPlugin {
                     .label("update_sprites")
                     .after("move_clouds")
                     .with_system(update_cloud_pos)
+                    .with_system(despawn_clouds)
                     .into(),
             );
     }
@@ -373,11 +373,10 @@ fn set_cloud_direction(mut cloud_control: ResMut<CloudControl>) {
 }
 
 fn move_clouds(
-    mut commands: Commands,
     cloud_control: ResMut<CloudControl>,
     mut grid_state: ResMut<GridState>,
     mut left_query: Query<
-        (&mut GridPos, &mut Transform, Entity),
+        &mut GridPos,
         (
             With<LeftCloud>,
             Without<RightCloud>,
@@ -386,7 +385,7 @@ fn move_clouds(
         ),
     >,
     mut right_query: Query<
-        (&mut GridPos, &mut Transform, Entity),
+        &mut GridPos,
         (
             With<RightCloud>,
             Without<LeftCloud>,
@@ -395,7 +394,7 @@ fn move_clouds(
         ),
     >,
     mut up_query: Query<
-        (&mut GridPos, &mut Transform, Entity),
+        &mut GridPos,
         (
             With<UpCloud>,
             Without<RightCloud>,
@@ -404,7 +403,7 @@ fn move_clouds(
         ),
     >,
     mut down_query: Query<
-        (&mut GridPos, &mut Transform, Entity),
+        &mut GridPos,
         (
             With<DownCloud>,
             Without<RightCloud>,
@@ -418,88 +417,87 @@ fn move_clouds(
         return;
     }
     let cloud_dir = cloud_control.cur_cloud_move.unwrap();
+    let pushed_clouds: Vec<([i8; 2], CloudDir)> = vec![];
 
     if cloud_dir == CloudDir::Down {
-        for (mut cloud_pos, mut transfo, entity) in down_query.iter_mut() {
+        for mut cloud_pos in down_query.iter_mut() {
             let next_tile_occupied =
                 grid_state.is_occupied([cloud_pos.pos[0], cloud_pos.pos[1] - 1i8]);
             if next_tile_occupied {
                 continue;
             }
-            let despawn = grid_state.move_on_grid(
+            grid_state.move_on_grid(
                 cloud_pos.pos,
                 [cloud_pos.pos[0], cloud_pos.pos[1] - 1i8],
                 TileOccupation::DownCloud,
             );
-            if despawn {
-                commands.entity(entity).despawn()
-            } else {
-                cloud_pos.pos[1] += -1i8;
-                // transfo.translation = grid_to_vec(cloud_pos.pos);
-            }
+            cloud_pos.pos[1] += -1i8;
         }
     }
     if cloud_dir == CloudDir::Left {
-        for (mut cloud_pos, mut transfo, entity) in left_query.iter_mut() {
+        for mut cloud_pos in left_query.iter_mut() {
             let next_tile_occupied =
                 grid_state.is_occupied([cloud_pos.pos[0] - 1i8, cloud_pos.pos[1]]);
             if next_tile_occupied {
                 continue;
             }
-            let despawn = grid_state.move_on_grid(
+            grid_state.move_on_grid(
                 cloud_pos.pos,
                 [cloud_pos.pos[0] - 1i8, cloud_pos.pos[1]],
                 TileOccupation::LeftCloud,
             );
-            if despawn {
-                commands.entity(entity).despawn()
-            } else {
-                cloud_pos.pos[0] += -1i8;
-                // transfo.translation = grid_to_vec(cloud_pos.pos);
-            }
+
+            cloud_pos.pos[0] += -1i8;
         }
     }
     if cloud_dir == CloudDir::Up {
-        for (mut cloud_pos, mut transfo, entity) in up_query.iter_mut() {
+        for mut cloud_pos in up_query.iter_mut() {
             let next_tile_occupied =
                 grid_state.is_occupied([cloud_pos.pos[0], cloud_pos.pos[1] + 1i8]);
             if next_tile_occupied {
                 continue;
             }
-            let despawn = grid_state.move_on_grid(
+            grid_state.move_on_grid(
                 cloud_pos.pos,
                 [cloud_pos.pos[0], cloud_pos.pos[1] + 1i8],
                 TileOccupation::UpCloud,
             );
-            if despawn {
-                commands.entity(entity).despawn()
-            } else {
-                cloud_pos.pos[1] += 1i8;
-                // transfo.translation = grid_to_vec(cloud_pos.pos);
-            }
+
+            cloud_pos.pos[1] += 1i8;
         }
     }
     if cloud_dir == CloudDir::Right {
-        for (mut cloud_pos, mut transfo, entity) in right_query.iter_mut() {
+        for mut cloud_pos in right_query.iter_mut() {
             let next_tile_occupied =
                 grid_state.is_occupied([cloud_pos.pos[0] + 1i8, cloud_pos.pos[1]]);
             if next_tile_occupied {
                 continue;
             }
-            let despawn = grid_state.move_on_grid(
+            grid_state.move_on_grid(
                 cloud_pos.pos,
                 [cloud_pos.pos[0] + 1i8, cloud_pos.pos[1]],
                 TileOccupation::RightCloud,
             );
-            if despawn {
-                commands.entity(entity).despawn()
-            } else {
-                cloud_pos.pos[0] += 1i8;
-                // transfo.translation = grid_to_vec(cloud_pos.pos);
-            }
+
+            cloud_pos.pos[0] += 1i8;
+            // transfo.translation = grid_to_vec(cloud_pos.pos);
         }
     }
     // cloud_control.cur_cloud_move = None;
+}
+
+fn despawn_clouds(
+    mut commands: Commands,
+    grid_state: ResMut<GridState>,
+    mut query: Query<(&mut GridPos, Entity), (With<Cloud>,)>,
+) {
+    for (cloud_pos, entity) in query.iter_mut() {
+        if grid_state.grid[cloud_pos.pos[0] as usize][cloud_pos.pos[1] as usize]
+            == TileOccupation::Despawn
+        {
+            commands.entity(entity).despawn();
+        }
+    }
 }
 
 fn update_cloud_pos(
