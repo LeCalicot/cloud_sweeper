@@ -51,14 +51,24 @@ pub struct CloudControl {
     sequence: [CloudDir; 4],
 }
 
+// WIP: use TileOccupation instead of bool
+
+#[derive(Default, Eq, PartialEq, Debug, Copy, Clone)]
+pub enum TileOccupation {
+    #[default]
+    Empty,
+    Player,
+    Cloud,
+}
+
 pub struct GridState {
-    grid: [[bool; LEVEL_SIZE as usize]; LEVEL_SIZE as usize],
+    grid: [[TileOccupation; LEVEL_SIZE as usize]; LEVEL_SIZE as usize],
 }
 
 impl Default for GridState {
     fn default() -> Self {
         GridState {
-            grid: [[false; LEVEL_SIZE as usize]; LEVEL_SIZE as usize],
+            grid: [[TileOccupation::Empty; LEVEL_SIZE as usize]; LEVEL_SIZE as usize],
         }
     }
 }
@@ -130,7 +140,7 @@ impl GridState {
 
         if let Some(pos) = non_occupied.choose(&mut rand::thread_rng()) {
             // Add the cloud to the grid
-            self.populate_tile(*pos);
+            self.populate_tile_with_cloud(*pos, TileOccupation::Cloud);
             Some((grid_to_vec(*pos), *pos))
         } else {
             None
@@ -138,21 +148,26 @@ impl GridState {
     }
 
     /// Spawn something on the tile, it becomes occupied
-    fn populate_tile(&mut self, target_tile: [i8; 2]) {
-        self.grid[target_tile[0] as usize][target_tile[1] as usize] = true;
+    fn populate_tile_with_cloud(&mut self, target_tile: [i8; 2], object: TileOccupation) {
+        self.grid[target_tile[0] as usize][target_tile[1] as usize] = object;
     }
 
     /// Remove the entity from the previous tile and bring it to the new tile
     ///
     /// Return: whether to despawn the cloud
-    fn move_on_grid(&mut self, source_tile: [i8; 2], target_tile: [i8; 2]) -> bool {
-        self.grid[source_tile[0] as usize][source_tile[1] as usize] = false;
+    fn move_on_grid(
+        &mut self,
+        source_tile: [i8; 2],
+        target_tile: [i8; 2],
+        object: TileOccupation,
+    ) -> bool {
+        self.grid[source_tile[0] as usize][source_tile[1] as usize] = TileOccupation::Empty;
         if 0 < target_tile[0]
             && target_tile[0] < LEVEL_SIZE as i8
             && 0 < target_tile[1]
             && target_tile[1] < LEVEL_SIZE as i8
         {
-            self.grid[target_tile[0] as usize][target_tile[1] as usize] = true;
+            self.grid[target_tile[0] as usize][target_tile[1] as usize] = object;
             false
         } else {
             true
@@ -161,7 +176,10 @@ impl GridState {
 
     /// Check whether the tile is occupied
     fn is_occupied(&self, tile: [i8; 2]) -> bool {
-        self.grid[tile[0] as usize][tile[1] as usize]
+        match self.grid[tile[0] as usize][tile[1] as usize] {
+            TileOccupation::Empty => false,
+            _ => true,
+        }
     }
 }
 
@@ -398,8 +416,11 @@ fn move_clouds(
             if next_tile_occupied {
                 continue;
             }
-            let despawn =
-                grid_state.move_on_grid(cloud_pos.pos, [cloud_pos.pos[0], cloud_pos.pos[1] - 1i8]);
+            let despawn = grid_state.move_on_grid(
+                cloud_pos.pos,
+                [cloud_pos.pos[0], cloud_pos.pos[1] - 1i8],
+                TileOccupation::Cloud,
+            );
             if despawn {
                 commands.entity(entity).despawn()
             } else {
@@ -415,8 +436,11 @@ fn move_clouds(
             if next_tile_occupied {
                 continue;
             }
-            let despawn =
-                grid_state.move_on_grid(cloud_pos.pos, [cloud_pos.pos[0] - 1i8, cloud_pos.pos[1]]);
+            let despawn = grid_state.move_on_grid(
+                cloud_pos.pos,
+                [cloud_pos.pos[0] - 1i8, cloud_pos.pos[1]],
+                TileOccupation::Cloud,
+            );
             if despawn {
                 commands.entity(entity).despawn()
             } else {
@@ -432,8 +456,11 @@ fn move_clouds(
             if next_tile_occupied {
                 continue;
             }
-            let despawn =
-                grid_state.move_on_grid(cloud_pos.pos, [cloud_pos.pos[0], cloud_pos.pos[1] + 1i8]);
+            let despawn = grid_state.move_on_grid(
+                cloud_pos.pos,
+                [cloud_pos.pos[0], cloud_pos.pos[1] + 1i8],
+                TileOccupation::Cloud,
+            );
             if despawn {
                 commands.entity(entity).despawn()
             } else {
@@ -449,8 +476,11 @@ fn move_clouds(
             if next_tile_occupied {
                 continue;
             }
-            let despawn =
-                grid_state.move_on_grid(cloud_pos.pos, [cloud_pos.pos[0] + 1i8, cloud_pos.pos[1]]);
+            let despawn = grid_state.move_on_grid(
+                cloud_pos.pos,
+                [cloud_pos.pos[0] + 1i8, cloud_pos.pos[1]],
+                TileOccupation::Cloud,
+            );
             if despawn {
                 commands.entity(entity).despawn()
             } else {
