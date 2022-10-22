@@ -255,7 +255,8 @@ impl GridState {
         }
     }
 
-    /// Check whether the next tile is occupied
+    /// Check whether the next tile is occupied. Here the function is called on
+    /// the tile N+1 such that we check the tile N+2
     fn is_occupied(&self, tile: [i8; 2], dir: Option<CloudDir>) -> PushState {
         if self.is_out_of_range(tile) {
             return PushState::Despawn;
@@ -274,7 +275,7 @@ impl GridState {
             let next_in_range = self.is_out_of_range(next_tile);
             if !next_in_range {
                 let next_cloud_dir = self.grid[next_tile[0] as usize][next_tile[1] as usize];
-                return match dir {
+                match dir {
                     CloudDir::Down => match next_cloud_dir {
                         TileOccupation::UpCloud => PushState::Blocked,
                         _ => PushState::CanPush,
@@ -291,12 +292,13 @@ impl GridState {
                         TileOccupation::LeftCloud => PushState::Blocked,
                         _ => PushState::CanPush,
                     },
-                };
+                }
             } else {
-                return PushState::Blocked;
+                PushState::Blocked
             }
+        } else {
+            PushState::Blocked
         }
-        PushState::Blocked
     }
 }
 
@@ -518,7 +520,7 @@ fn move_clouds(
                     grid_state.move_on_grid(
                         cloud_pos.pos,
                         [cloud_pos.pos[0] - 1i8, cloud_pos.pos[1]],
-                        TileOccupation::DownCloud,
+                        TileOccupation::LeftCloud,
                     );
                     cloud_pos.pos[0] += -1i8;
                 }
@@ -595,26 +597,32 @@ fn push_clouds(
     mut query: Query<
         (&Cloud, &mut GridPos),
         (
-            With<LeftCloud>,
-            With<RightCloud>,
-            With<UpCloud>,
-            With<DownCloud>,
+            Or<(
+                With<LeftCloud>,
+                With<RightCloud>,
+                With<UpCloud>,
+                With<DownCloud>,
+            )>,
         ),
     >,
 ) {
-    if cloud_control.next_pushed_clouds.len() > 0 {
-        println!("{} {} {:?}", { "➤".blue() }, { "AAA:".blue() }, {
-            cloud_control.next_pushed_clouds.clone()
-        });
-    }
-    if cloud_control.pushed_clouds.len() > 0 {
-        println!("{} {} {:?}", { "➤".blue() }, { "BBB:".blue() }, {
-            cloud_control.next_pushed_clouds.clone()
-        });
-    }
+    // if cloud_control.next_pushed_clouds.len() > 0 {
+    //     println!("{} {} {:?}", { "➤".blue() }, { "AAA:".blue() }, {
+    //         cloud_control.next_pushed_clouds.clone()
+    //     });
+    // }
+    // if cloud_control.pushed_clouds.len() > 0 {
+    //     println!("{} {} {:?}", { "➤".blue() }, { "BBB:".blue() }, {
+    //         cloud_control.next_pushed_clouds.clone()
+    //     });
+    // }
     // Move first the next cloud "pushed":
     for (pos, dir) in cloud_control.next_pushed_clouds.drain(..) {
+        println!("{} {} {:?}", { "➤".blue() }, { "AAA:".blue() }, { pos });
         for (cloud, mut cloud_pos) in query.iter_mut() {
+            println!("{} {} {:?}", { "➤".red() }, { "BBB:".red() }, {
+                cloud_pos.pos
+            });
             if cloud_pos.pos == pos {
                 println!("{} {} {:?}", { "➤".red() }, { "CCC:".red() }, {
                     "Yeah, push"
