@@ -17,7 +17,9 @@ pub struct CloudPlugin;
 // }
 
 #[derive(Component)]
-pub struct Cloud;
+pub struct Cloud {
+    pub dir: CloudDir,
+}
 
 #[derive(Component)]
 pub struct GridPos {
@@ -74,7 +76,9 @@ pub fn new_cloud(
                         ..default()
                     })
                     .insert(DownCloud)
-                    .insert(Cloud)
+                    .insert(Cloud {
+                        dir: CloudDir::Down,
+                    })
                     .insert(GridPos {
                         pos: cloud_pos_grid,
                     });
@@ -87,7 +91,9 @@ pub fn new_cloud(
                         ..default()
                     })
                     .insert(LeftCloud)
-                    .insert(Cloud)
+                    .insert(Cloud {
+                        dir: CloudDir::Left,
+                    })
                     .insert(GridPos {
                         pos: cloud_pos_grid,
                     });
@@ -100,7 +106,7 @@ pub fn new_cloud(
                         ..default()
                     })
                     .insert(UpCloud)
-                    .insert(Cloud)
+                    .insert(Cloud { dir: CloudDir::Up })
                     .insert(GridPos {
                         pos: cloud_pos_grid,
                     });
@@ -113,7 +119,9 @@ pub fn new_cloud(
                         ..default()
                     })
                     .insert(RightCloud)
-                    .insert(Cloud)
+                    .insert(Cloud {
+                        dir: CloudDir::Right,
+                    })
                     .insert(GridPos {
                         pos: cloud_pos_grid,
                     });

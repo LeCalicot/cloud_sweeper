@@ -12,6 +12,7 @@ use std::io::Cursor;
 use winit::window::Icon;
 
 // FIXME: it seems that clouds disappear on tile n=1 on the left of clouds going left
+// TODO: factorize the 4 direction by having a function which returns the value to add (+1,-1,..)
 
 fn main() {
     App::new()
