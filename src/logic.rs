@@ -28,7 +28,7 @@ use rand::seq::SliceRandom;
 
 const MAX_BUFFER_INPUT: usize = 10;
 const MOVE_TIMER: f32 = 0.050;
-const CLOUD_TIMER: f32 = 0.5;
+const CLOUD_TIMER: f32 = 1.;
 
 pub struct LogicPlugin;
 
@@ -219,7 +219,7 @@ impl GridState {
 
         let non_occupied: Vec<[i8; 2]> = line
             .into_iter()
-            .filter(|v| (self.is_occupied(*v, Some(border)) == PushState::Empty))
+            .filter(|v| (self.is_occupied(*v, border) == PushState::Empty))
             .collect();
         if let Some(pos) = non_occupied.choose(&mut rand::thread_rng()) {
             // Add the cloud to the grid
@@ -247,6 +247,9 @@ impl GridState {
     ///
     /// Return: whether to despawn the cloud
     fn move_on_grid(&mut self, source_tile: [i8; 2], target_tile: [i8; 2], object: TileOccupation) {
+        // assert!(
+        //     self.grid[target_tile[0] as usize][target_tile[1] as usize] == TileOccupation::Empty
+        // );
         if self.is_out_of_range(target_tile) {
             self.grid[source_tile[0] as usize][source_tile[1] as usize] = TileOccupation::Despawn;
         } else {
@@ -257,47 +260,77 @@ impl GridState {
 
     /// Check whether the next tile is occupied. Here the function is called on
     /// the tile N+1 such that we check the tile N+2
-    fn is_occupied(&self, tile: [i8; 2], dir: Option<CloudDir>) -> PushState {
+    fn is_occupied(&self, tile: [i8; 2], dir: CloudDir) -> PushState {
         if self.is_out_of_range(tile) {
             return PushState::Despawn;
         }
-        if self.grid[tile[0] as usize][tile[1] as usize] == TileOccupation::Empty {
+        let target_tile_occ = self.grid[tile[0] as usize][tile[1] as usize];
+        // Nothing on the target tile, you are good to go:
+        if target_tile_occ == TileOccupation::Empty {
             return PushState::Empty;
         }
-        if let Some(dir) = dir {
-            let next_tile = match dir {
-                CloudDir::Down => [tile[0], tile[1] - 1],
-                CloudDir::Up => [tile[0], tile[1] + 1],
-                CloudDir::Left => [tile[0] - 1, tile[1]],
-                CloudDir::Right => [tile[0] + 1, tile[1]],
-            };
 
-            let next_in_range = self.is_out_of_range(next_tile);
-            if !next_in_range {
-                let next_cloud_dir = self.grid[next_tile[0] as usize][next_tile[1] as usize];
-                match dir {
-                    CloudDir::Down => match next_cloud_dir {
-                        TileOccupation::UpCloud => PushState::Blocked,
-                        _ => PushState::CanPush,
-                    },
-                    CloudDir::Up => match next_cloud_dir {
-                        TileOccupation::DownCloud => PushState::Blocked,
-                        _ => PushState::CanPush,
-                    },
-                    CloudDir::Left => match next_cloud_dir {
-                        TileOccupation::RightCloud => PushState::Blocked,
-                        _ => PushState::CanPush,
-                    },
-                    CloudDir::Right => match next_cloud_dir {
-                        TileOccupation::LeftCloud => PushState::Blocked,
-                        _ => PushState::CanPush,
-                    },
-                }
-            } else {
-                PushState::Blocked
-            }
-        } else {
+        // Check the N+2 tile (behind the target tile):
+        let np2_tile = match dir {
+            CloudDir::Down => [tile[0], tile[1] - 1],
+            CloudDir::Up => [tile[0], tile[1] + 1],
+            CloudDir::Left => [tile[0] - 1, tile[1]],
+            CloudDir::Right => [tile[0] + 1, tile[1]],
+        };
+
+        let np2_in_range = !self.is_out_of_range(np2_tile);
+
+        // Here deal with the case where we are on the edge of the board:
+        if !np2_in_range {
+            return match dir {
+                CloudDir::Down => match target_tile_occ {
+                    TileOccupation::UpCloud => PushState::Blocked,
+                    _ => PushState::CanPush,
+                },
+                CloudDir::Up => match target_tile_occ {
+                    TileOccupation::DownCloud => PushState::Blocked,
+                    _ => PushState::CanPush,
+                },
+                CloudDir::Left => match target_tile_occ {
+                    TileOccupation::RightCloud => PushState::Blocked,
+                    _ => PushState::CanPush,
+                },
+                CloudDir::Right => match target_tile_occ {
+                    TileOccupation::LeftCloud => PushState::Blocked,
+                    _ => PushState::CanPush,
+                },
+            };
+        }
+
+        let next_tile_occ = self.grid[np2_tile[0] as usize][np2_tile[1] as usize];
+        let tile_np2_occupied = !(matches!(
+            next_tile_occ,
+            TileOccupation::Empty | TileOccupation::Despawn
+        ));
+
+        // Case where there is something behind, just forget it
+        if tile_np2_occupied {
             PushState::Blocked
+        } else {
+            // case where there is something behind, it depends on the target tile
+            match dir {
+                CloudDir::Down => match target_tile_occ {
+                    TileOccupation::UpCloud => PushState::Blocked,
+                    _ => PushState::CanPush,
+                },
+                CloudDir::Up => match target_tile_occ {
+                    TileOccupation::DownCloud => PushState::Blocked,
+                    _ => PushState::CanPush,
+                },
+                CloudDir::Left => match target_tile_occ {
+                    TileOccupation::RightCloud => PushState::Blocked,
+                    _ => PushState::CanPush,
+                },
+                CloudDir::Right => match target_tile_occ {
+                    TileOccupation::LeftCloud => PushState::Blocked,
+                    _ => PushState::CanPush,
+                },
+            }
         }
     }
 }
@@ -481,7 +514,7 @@ fn move_clouds(
     if cloud_dir == CloudDir::Down {
         for mut cloud_pos in down_query.iter_mut() {
             let next_tile_push =
-                grid_state.is_occupied([cloud_pos.pos[0], cloud_pos.pos[1] - 1i8], Some(cloud_dir));
+                grid_state.is_occupied([cloud_pos.pos[0], cloud_pos.pos[1] - 1i8], cloud_dir);
 
             match next_tile_push {
                 PushState::Blocked => continue,
@@ -509,7 +542,7 @@ fn move_clouds(
     if cloud_dir == CloudDir::Left {
         for mut cloud_pos in left_query.iter_mut() {
             let next_tile_push =
-                grid_state.is_occupied([cloud_pos.pos[0] - 1i8, cloud_pos.pos[1]], Some(cloud_dir));
+                grid_state.is_occupied([cloud_pos.pos[0] - 1i8, cloud_pos.pos[1]], cloud_dir);
             match next_tile_push {
                 PushState::Blocked => continue,
                 PushState::Despawn => {
@@ -536,7 +569,7 @@ fn move_clouds(
     if cloud_dir == CloudDir::Up {
         for mut cloud_pos in up_query.iter_mut() {
             let next_tile_push =
-                grid_state.is_occupied([cloud_pos.pos[0], cloud_pos.pos[1] + 1i8], Some(cloud_dir));
+                grid_state.is_occupied([cloud_pos.pos[0], cloud_pos.pos[1] + 1i8], cloud_dir);
             match next_tile_push {
                 PushState::Blocked => continue,
                 PushState::Despawn => {
@@ -563,7 +596,7 @@ fn move_clouds(
     if cloud_dir == CloudDir::Right {
         for mut cloud_pos in right_query.iter_mut() {
             let next_tile_push =
-                grid_state.is_occupied([cloud_pos.pos[0] + 1i8, cloud_pos.pos[1]], Some(cloud_dir));
+                grid_state.is_occupied([cloud_pos.pos[0] + 1i8, cloud_pos.pos[1]], cloud_dir);
             match next_tile_push {
                 PushState::Blocked => continue,
                 PushState::Despawn => {
@@ -587,6 +620,7 @@ fn move_clouds(
             }
         }
     }
+    cloud_control.cur_cloud_move = None;
 }
 
 /// Deal with the cloud which need to be pushed. At this stage, one already
@@ -618,14 +652,10 @@ fn push_clouds(
     // }
     // Move first the next cloud "pushed":
     for (pos, dir) in cloud_control.next_pushed_clouds.drain(..) {
-        println!("{} {} {:?}", { "➤".blue() }, { "AAA:".blue() }, { pos });
         for (cloud, mut cloud_pos) in query.iter_mut() {
-            println!("{} {} {:?}", { "➤".red() }, { "BBB:".red() }, {
-                cloud_pos.pos
-            });
             if cloud_pos.pos == pos {
-                println!("{} {} {:?}", { "➤".red() }, { "CCC:".red() }, {
-                    "Yeah, push"
+                println!("{} {} {:?}", { "➤".red() }, { "CCC: next cloud".red() }, {
+                    pos
                 });
                 match dir {
                     CloudDir::Down => {
@@ -686,9 +716,12 @@ fn push_clouds(
     }
 
     // Then move the actual clouds pushing the other one:
-    for (pos, dir) in cloud_control.next_pushed_clouds.drain(..) {
+    for (pos, dir) in cloud_control.pushed_clouds.drain(..) {
         for (_, mut cloud_pos) in query.iter_mut() {
             if cloud_pos.pos == pos {
+                println!("{} {} {:?}", { "➤".red() }, { "DDD: cloud".red() }, {
+                    pos
+                });
                 match dir {
                     CloudDir::Down => {
                         grid_state.move_on_grid(
@@ -726,6 +759,12 @@ fn push_clouds(
             }
         }
     }
+    // println!("{} {} {:?}", { "➤".blue() }, { "AAA:".green() }, {
+    //     cloud_control.next_pushed_clouds.clone()
+    // });
+    // println!("{} {} {:?}", { "➤".blue() }, { "AAA:".green() }, {
+    //     cloud_control.pushed_clouds.clone()
+    // });
 }
 
 fn despawn_clouds(
@@ -742,70 +781,75 @@ fn despawn_clouds(
     }
 }
 
-fn update_cloud_pos(
-    mut cloud_control: ResMut<CloudControl>,
-    mut left_query: Query<
-        (&mut GridPos, &mut Transform),
-        (
-            With<LeftCloud>,
-            Without<RightCloud>,
-            Without<UpCloud>,
-            Without<DownCloud>,
-        ),
-    >,
-    mut right_query: Query<
-        (&mut GridPos, &mut Transform),
-        (
-            With<RightCloud>,
-            Without<LeftCloud>,
-            Without<UpCloud>,
-            Without<DownCloud>,
-        ),
-    >,
-    mut up_query: Query<
-        (&mut GridPos, &mut Transform),
-        (
-            With<UpCloud>,
-            Without<RightCloud>,
-            Without<LeftCloud>,
-            Without<DownCloud>,
-        ),
-    >,
-    mut down_query: Query<
-        (&mut GridPos, &mut Transform),
-        (
-            With<DownCloud>,
-            Without<RightCloud>,
-            Without<UpCloud>,
-            Without<LeftCloud>,
-        ),
-    >,
-) {
-    // return early if the timer is off or there is no cloud direction set
-    if cloud_control.cur_cloud_move.is_none() {
-        return;
+fn update_cloud_pos(mut query: Query<(&mut GridPos, &mut Transform), (With<Cloud>,)>) {
+    for (cloud_pos, mut transfo) in query.iter_mut() {
+        transfo.translation = grid_to_vec(cloud_pos.pos);
     }
-    let cloud_dir = cloud_control.cur_cloud_move.unwrap();
-
-    if cloud_dir == CloudDir::Down {
-        for (cloud_pos, mut transfo) in down_query.iter_mut() {
-            transfo.translation = grid_to_vec(cloud_pos.pos);
-        }
-    }
-    if cloud_dir == CloudDir::Left {
-        for (cloud_pos, mut transfo) in left_query.iter_mut() {
-            transfo.translation = grid_to_vec(cloud_pos.pos);
-        }
-    }
-    if cloud_dir == CloudDir::Up {
-        for (cloud_pos, mut transfo) in up_query.iter_mut() {
-            transfo.translation = grid_to_vec(cloud_pos.pos);
-        }
-    }
-    if cloud_dir == CloudDir::Right {
-        for (cloud_pos, mut transfo) in right_query.iter_mut() {
-            transfo.translation = grid_to_vec(cloud_pos.pos);
-        }
-    }
-    cloud_control.cur_cloud_move = None;
 }
+// fn update_cloud_pos(
+//     mut cloud_control: ResMut<CloudControl>,
+//     mut left_query: Query<
+//         (&mut GridPos, &mut Transform),
+//         (
+//             With<LeftCloud>,
+//             Without<RightCloud>,
+//             Without<UpCloud>,
+//             Without<DownCloud>,
+//         ),
+//     >,
+//     mut right_query: Query<
+//         (&mut GridPos, &mut Transform),
+//         (
+//             With<RightCloud>,
+//             Without<LeftCloud>,
+//             Without<UpCloud>,
+//             Without<DownCloud>,
+//         ),
+//     >,
+//     mut up_query: Query<
+//         (&mut GridPos, &mut Transform),
+//         (
+//             With<UpCloud>,
+//             Without<RightCloud>,
+//             Without<LeftCloud>,
+//             Without<DownCloud>,
+//         ),
+//     >,
+//     mut down_query: Query<
+//         (&mut GridPos, &mut Transform),
+//         (
+//             With<DownCloud>,
+//             Without<RightCloud>,
+//             Without<UpCloud>,
+//             Without<LeftCloud>,
+//         ),
+//     >,
+// ) {
+//     // return early if the timer is off or there is no cloud direction set
+//     if cloud_control.cur_cloud_move.is_none() {
+//         return;
+//     }
+//     let cloud_dir = cloud_control.cur_cloud_move.unwrap();
+
+//     if cloud_dir == CloudDir::Down {
+//         for (cloud_pos, mut transfo) in down_query.iter_mut() {
+//             transfo.translation = grid_to_vec(cloud_pos.pos);
+//         }
+//     }
+//     if cloud_dir == CloudDir::Left {
+//         for (cloud_pos, mut transfo) in left_query.iter_mut() {
+//             transfo.translation = grid_to_vec(cloud_pos.pos);
+//         }
+//     }
+//     if cloud_dir == CloudDir::Up {
+//         for (cloud_pos, mut transfo) in up_query.iter_mut() {
+//             transfo.translation = grid_to_vec(cloud_pos.pos);
+//         }
+//     }
+//     if cloud_dir == CloudDir::Right {
+//         for (cloud_pos, mut transfo) in right_query.iter_mut() {
+//             transfo.translation = grid_to_vec(cloud_pos.pos);
+//         }
+//     }
+//     cloud_control.cur_cloud_move = None;
+// }

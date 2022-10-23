@@ -57,8 +57,6 @@ pub enum CloudDir {
 //     }
 // }
 
-// WIP:initialize the position in the grid when inserting Cloud
-
 pub fn new_cloud(
     mut cloud_control: ResMut<CloudControl>,
     mut grid_state: ResMut<GridState>,
