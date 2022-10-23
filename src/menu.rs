@@ -90,6 +90,7 @@ fn setup_menu(
         });
 }
 
+#[allow(clippy::type_complexity)]
 fn click_play_button(
     button_colors: Res<ButtonColors>,
     mut interaction_query: Query<

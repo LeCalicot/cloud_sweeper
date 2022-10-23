@@ -28,7 +28,7 @@ use rand::seq::SliceRandom;
 
 const MAX_BUFFER_INPUT: usize = 10;
 const MOVE_TIMER: f32 = 0.050;
-const CLOUD_TIMER: f32 = 1.;
+const CLOUD_TIMER: f32 = 0.5;
 
 pub struct LogicPlugin;
 
@@ -58,7 +58,6 @@ impl Plugin for LogicPlugin {
                     .run_in_state(GameState::Playing)
                     .label("tick_clock")
                     .before("move_clouds")
-                    .before("new_cloud")
                     .with_system(tick_timer)
                     .with_system(set_cloud_direction)
                     .into(),
@@ -111,7 +110,7 @@ pub struct CloudControl {
     timer: Timer,
     sequence: [CloudDir; 4],
     pushed_clouds: Vec<([i8; 2], CloudDir)>,
-    next_pushed_clouds: Vec<([i8; 2], CloudDir)>,
+    next_pushed_clouds: Vec<([i8; 2], CloudDir, PushState)>,
 }
 
 #[derive(Default, Eq, PartialEq, Debug, Copy, Clone)]
@@ -133,6 +132,7 @@ pub enum PushState {
     Blocked,
     CanPush,
     Despawn,
+    PushOver,
 }
 
 pub struct GridState {
@@ -280,24 +280,24 @@ impl GridState {
 
         let np2_in_range = !self.is_out_of_range(np2_tile);
 
-        // Here deal with the case where we are on the edge of the board:
+        // Here deal with the case where we are on the edge of the board.
         if !np2_in_range {
             return match dir {
                 CloudDir::Down => match target_tile_occ {
                     TileOccupation::UpCloud => PushState::Blocked,
-                    _ => PushState::CanPush,
+                    _ => PushState::PushOver,
                 },
                 CloudDir::Up => match target_tile_occ {
                     TileOccupation::DownCloud => PushState::Blocked,
-                    _ => PushState::CanPush,
+                    _ => PushState::PushOver,
                 },
                 CloudDir::Left => match target_tile_occ {
                     TileOccupation::RightCloud => PushState::Blocked,
-                    _ => PushState::CanPush,
+                    _ => PushState::PushOver,
                 },
                 CloudDir::Right => match target_tile_occ {
                     TileOccupation::LeftCloud => PushState::Blocked,
-                    _ => PushState::CanPush,
+                    _ => PushState::PushOver,
                 },
             };
         }
@@ -455,14 +455,13 @@ fn tick_timer(mut cloud_control: ResMut<CloudControl>, time: Res<Time>) {
 fn set_cloud_direction(mut cloud_control: ResMut<CloudControl>) {
     if cloud_control.timer.finished() {
         let cloud_dir = Some(cloud_control.next_cloud_direction());
-        println!("{} {} {:?}", { "➤".blue() }, { "New Dir:".blue() }, {
-            cloud_dir.clone()
-        });
-        cloud_control.cur_new_cloud = cloud_dir.clone();
+        info!("cloud dir.: {:?}", cloud_dir.unwrap());
+        cloud_control.cur_new_cloud = cloud_dir;
         cloud_control.cur_cloud_move = cloud_dir;
     }
 }
 
+#[allow(clippy::type_complexity)]
 fn move_clouds(
     mut cloud_control: ResMut<CloudControl>,
     mut grid_state: ResMut<GridState>,
@@ -511,6 +510,8 @@ fn move_clouds(
     cloud_control.pushed_clouds = vec![];
     cloud_control.next_pushed_clouds = vec![];
 
+    // WIP: deal with the case where a cloud is pushed outside the screen
+
     if cloud_dir == CloudDir::Down {
         for mut cloud_pos in down_query.iter_mut() {
             let next_tile_push =
@@ -532,9 +533,19 @@ fn move_clouds(
                 }
                 PushState::CanPush => {
                     cloud_control.pushed_clouds.push((cloud_pos.pos, cloud_dir));
-                    cloud_control
-                        .next_pushed_clouds
-                        .push(([cloud_pos.pos[0], cloud_pos.pos[1] - 1], cloud_dir));
+                    cloud_control.next_pushed_clouds.push((
+                        [cloud_pos.pos[0], cloud_pos.pos[1] - 1],
+                        cloud_dir,
+                        PushState::CanPush,
+                    ));
+                }
+                PushState::PushOver => {
+                    cloud_control.pushed_clouds.push((cloud_pos.pos, cloud_dir));
+                    cloud_control.next_pushed_clouds.push((
+                        [cloud_pos.pos[0], cloud_pos.pos[1] - 1],
+                        cloud_dir,
+                        PushState::PushOver,
+                    ));
                 }
             }
         }
@@ -559,9 +570,19 @@ fn move_clouds(
                 }
                 PushState::CanPush => {
                     cloud_control.pushed_clouds.push((cloud_pos.pos, cloud_dir));
-                    cloud_control
-                        .next_pushed_clouds
-                        .push(([cloud_pos.pos[0] - 1, cloud_pos.pos[1]], cloud_dir));
+                    cloud_control.next_pushed_clouds.push((
+                        [cloud_pos.pos[0] - 1, cloud_pos.pos[1]],
+                        cloud_dir,
+                        PushState::CanPush,
+                    ));
+                }
+                PushState::PushOver => {
+                    cloud_control.pushed_clouds.push((cloud_pos.pos, cloud_dir));
+                    cloud_control.next_pushed_clouds.push((
+                        [cloud_pos.pos[0] - 1, cloud_pos.pos[1]],
+                        cloud_dir,
+                        PushState::PushOver,
+                    ));
                 }
             }
         }
@@ -586,9 +607,19 @@ fn move_clouds(
                 }
                 PushState::CanPush => {
                     cloud_control.pushed_clouds.push((cloud_pos.pos, cloud_dir));
-                    cloud_control
-                        .next_pushed_clouds
-                        .push(([cloud_pos.pos[0], cloud_pos.pos[1] + 1], cloud_dir));
+                    cloud_control.next_pushed_clouds.push((
+                        [cloud_pos.pos[0], cloud_pos.pos[1] + 1],
+                        cloud_dir,
+                        PushState::CanPush,
+                    ));
+                }
+                PushState::PushOver => {
+                    cloud_control.pushed_clouds.push((cloud_pos.pos, cloud_dir));
+                    cloud_control.next_pushed_clouds.push((
+                        [cloud_pos.pos[0], cloud_pos.pos[1] + 1],
+                        cloud_dir,
+                        PushState::PushOver,
+                    ));
                 }
             }
         }
@@ -613,9 +644,19 @@ fn move_clouds(
                 }
                 PushState::CanPush => {
                     cloud_control.pushed_clouds.push((cloud_pos.pos, cloud_dir));
-                    cloud_control
-                        .next_pushed_clouds
-                        .push(([cloud_pos.pos[0] + 1, cloud_pos.pos[1]], cloud_dir));
+                    cloud_control.next_pushed_clouds.push((
+                        [cloud_pos.pos[0] + 1, cloud_pos.pos[1]],
+                        cloud_dir,
+                        PushState::CanPush,
+                    ));
+                }
+                PushState::PushOver => {
+                    cloud_control.pushed_clouds.push((cloud_pos.pos, cloud_dir));
+                    cloud_control.next_pushed_clouds.push((
+                        [cloud_pos.pos[0] + 1, cloud_pos.pos[1]],
+                        cloud_dir,
+                        PushState::PushOver,
+                    ));
                 }
             }
         }
@@ -625,11 +666,13 @@ fn move_clouds(
 
 /// Deal with the cloud which need to be pushed. At this stage, one already
 /// knows that the tile N+2 is empty to push the cloud
+#[allow(clippy::type_complexity)]
 fn push_clouds(
+    mut commands: Commands,
     mut cloud_control: ResMut<CloudControl>,
     mut grid_state: ResMut<GridState>,
     mut query: Query<
-        (&Cloud, &mut GridPos),
+        (&Cloud, &mut GridPos, Entity),
         (
             Or<(
                 With<LeftCloud>,
@@ -640,23 +683,19 @@ fn push_clouds(
         ),
     >,
 ) {
-    // if cloud_control.next_pushed_clouds.len() > 0 {
-    //     println!("{} {} {:?}", { "➤".blue() }, { "AAA:".blue() }, {
-    //         cloud_control.next_pushed_clouds.clone()
-    //     });
-    // }
-    // if cloud_control.pushed_clouds.len() > 0 {
-    //     println!("{} {} {:?}", { "➤".blue() }, { "BBB:".blue() }, {
-    //         cloud_control.next_pushed_clouds.clone()
-    //     });
-    // }
     // Move first the next cloud "pushed":
-    for (pos, dir) in cloud_control.next_pushed_clouds.drain(..) {
-        for (cloud, mut cloud_pos) in query.iter_mut() {
+    for (pos, dir, push_type) in cloud_control.next_pushed_clouds.drain(..) {
+        for (cloud, mut cloud_pos, entity) in query.iter_mut() {
             if cloud_pos.pos == pos {
-                println!("{} {} {:?}", { "➤".red() }, { "CCC: next cloud".red() }, {
-                    pos
-                });
+                // If cloud to be pushed out of the board, despawn it instantly:
+                if push_type == PushState::PushOver {
+                    // TODO: check that it actuall works:
+                    commands.entity(entity).despawn();
+                    grid_state.grid[cloud_pos.pos[0] as usize][cloud_pos.pos[1] as usize] =
+                        TileOccupation::Empty;
+                    continue;
+                };
+
                 match dir {
                     CloudDir::Down => {
                         grid_state.move_on_grid(
@@ -717,11 +756,8 @@ fn push_clouds(
 
     // Then move the actual clouds pushing the other one:
     for (pos, dir) in cloud_control.pushed_clouds.drain(..) {
-        for (_, mut cloud_pos) in query.iter_mut() {
+        for (_, mut cloud_pos, _) in query.iter_mut() {
             if cloud_pos.pos == pos {
-                println!("{} {} {:?}", { "➤".red() }, { "DDD: cloud".red() }, {
-                    pos
-                });
                 match dir {
                     CloudDir::Down => {
                         grid_state.move_on_grid(
@@ -759,12 +795,6 @@ fn push_clouds(
             }
         }
     }
-    // println!("{} {} {:?}", { "➤".blue() }, { "AAA:".green() }, {
-    //     cloud_control.next_pushed_clouds.clone()
-    // });
-    // println!("{} {} {:?}", { "➤".blue() }, { "AAA:".green() }, {
-    //     cloud_control.pushed_clouds.clone()
-    // });
 }
 
 fn despawn_clouds(
