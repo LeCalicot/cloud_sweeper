@@ -28,8 +28,7 @@ use rand::seq::SliceRandom;
 
 const MAX_BUFFER_INPUT: usize = 10;
 const MOVE_TIMER: f32 = 0.050;
-const CLOUD_TIMER: f32 = 0.5;
-
+const CLOUD_TIMER: f32 = 1.0;
 pub struct LogicPlugin;
 
 /// This plugin handles player related stuff like movement
@@ -37,22 +36,6 @@ pub struct LogicPlugin;
 impl Plugin for LogicPlugin {
     fn build(&self, app: &mut App) {
         app.add_enter_system(GameState::Playing, set_up_logic)
-            .add_system_set(
-                ConditionSet::new()
-                    .run_in_state(GameState::Playing)
-                    .label("fill_player_buffer")
-                    .after("pop_player_buffer")
-                    .with_system(fill_player_buffer)
-                    .into(),
-            )
-            .add_system_set(
-                ConditionSet::new()
-                    .run_in_state(GameState::Playing)
-                    .before("fill_player_buffer")
-                    .label("pop_player_buffer")
-                    .with_system(pop_player_buffer)
-                    .into(),
-            )
             .add_system_set(
                 ConditionSet::new()
                     .run_in_state(GameState::Playing)
@@ -87,6 +70,22 @@ impl Plugin for LogicPlugin {
                     // .after("move_clouds")
                     .with_system(update_cloud_pos)
                     .with_system(despawn_clouds)
+                    .into(),
+            )
+            .add_system_set(
+                ConditionSet::new()
+                    .run_in_state(GameState::Playing)
+                    .label("pop_player_buffer")
+                    // .after("push_clouds")
+                    .with_system(pop_player_buffer)
+                    .into(),
+            )
+            .add_system_set(
+                ConditionSet::new()
+                    .run_in_state(GameState::Playing)
+                    .label("fill_player_buffer")
+                    .after("pop_player_buffer")
+                    .with_system(fill_player_buffer)
                     .into(),
             );
     }
@@ -316,18 +315,49 @@ impl GridState {
             match dir {
                 CloudDir::Down => match target_tile_occ {
                     TileOccupation::UpCloud => PushState::Blocked,
+                    TileOccupation::Player => {
+                        if tile[1] <= ((LEVEL_SIZE - STAGE_WIDTH) / 2) as i8 {
+                            PushState::Blocked
+                        } else {
+                            PushState::CanPush
+                        }
+                    }
                     _ => PushState::CanPush,
                 },
                 CloudDir::Up => match target_tile_occ {
                     TileOccupation::DownCloud => PushState::Blocked,
+                    TileOccupation::Player => {
+                        println!("{} {} {:?}", { "➤".blue() }, { "BBB:".blue() }, {
+                            "push up"
+                        });
+                        if tile[1] >= (STAGE_WIDTH + (LEVEL_SIZE - STAGE_WIDTH) / 2 - 1) as i8 {
+                            PushState::Blocked
+                        } else {
+                            PushState::CanPush
+                        }
+                    }
                     _ => PushState::CanPush,
                 },
                 CloudDir::Left => match target_tile_occ {
                     TileOccupation::RightCloud => PushState::Blocked,
+                    TileOccupation::Player => {
+                        if tile[0] <= ((LEVEL_SIZE - STAGE_WIDTH) / 2) as i8 {
+                            PushState::Blocked
+                        } else {
+                            PushState::CanPush
+                        }
+                    }
                     _ => PushState::CanPush,
                 },
                 CloudDir::Right => match target_tile_occ {
                     TileOccupation::LeftCloud => PushState::Blocked,
+                    TileOccupation::Player => {
+                        if tile[0] >= (STAGE_WIDTH + (LEVEL_SIZE - STAGE_WIDTH) / 2 - 1) as i8 {
+                            PushState::Blocked
+                        } else {
+                            PushState::CanPush
+                        }
+                    }
                     _ => PushState::CanPush,
                 },
             }
@@ -384,7 +414,12 @@ pub fn fill_player_buffer(mut actions: ResMut<Actions>, mut player_control: ResM
 }
 
 /// Pop and applies all the player moves when the timer expires
-pub fn pop_player_buffer(mut player_control: ResMut<PlayerControl>, time: Res<Time>) {
+pub fn pop_player_buffer(
+    mut cloud_control: ResMut<CloudControl>,
+    mut grid_state: ResMut<GridState>,
+    mut player_control: ResMut<PlayerControl>,
+    time: Res<Time>,
+) {
     // timers gotta be ticked, to work
     player_control.timer.tick(time.delta());
 
@@ -394,8 +429,10 @@ pub fn pop_player_buffer(mut player_control: ResMut<PlayerControl>, time: Res<Ti
         player_control.input_buffer[0] = GameControl::Idle;
         player_control.input_buffer.rotate_left(1);
 
+        let mut action_direction = CloudDir::Down;
         let player_move: [i8; 2] = match player_action {
             GameControl::Down => {
+                action_direction = CloudDir::Down;
                 if player_control.player_pos[1] > (STAGE_BL[1] as i8) {
                     [0, -1]
                 } else {
@@ -403,6 +440,7 @@ pub fn pop_player_buffer(mut player_control: ResMut<PlayerControl>, time: Res<Ti
                 }
             }
             GameControl::Up => {
+                action_direction = CloudDir::Up;
                 if player_control.player_pos[1] < (STAGE_UR[1] as i8) {
                     [0, 1]
                 } else {
@@ -410,6 +448,7 @@ pub fn pop_player_buffer(mut player_control: ResMut<PlayerControl>, time: Res<Ti
                 }
             }
             GameControl::Left => {
+                action_direction = CloudDir::Left;
                 if player_control.player_pos[0] > (STAGE_BL[0] as i8) {
                     [-1, 0]
                 } else {
@@ -417,6 +456,7 @@ pub fn pop_player_buffer(mut player_control: ResMut<PlayerControl>, time: Res<Ti
                 }
             }
             GameControl::Right => {
+                action_direction = CloudDir::Right;
                 if player_control.player_pos[0] < (STAGE_UR[0] as i8) {
                     [1, 0]
                 } else {
@@ -425,12 +465,32 @@ pub fn pop_player_buffer(mut player_control: ResMut<PlayerControl>, time: Res<Ti
             }
             GameControl::Idle => [0, 0],
         };
-        let player_abs_pos = [
+        let player_new_pos = [
             player_control.player_pos[0] + player_move[0],
             player_control.player_pos[1] + player_move[1],
         ];
-        player_control.player_pos = player_abs_pos;
 
+        match grid_state.is_occupied(player_new_pos, action_direction) {
+            PushState::Empty => {
+                player_control.player_pos = player_new_pos;
+            }
+            PushState::Blocked => {}
+            PushState::CanPush => {
+                // FIXME
+                // cloud_control
+                //     .pushed_clouds
+                //     .push((player_new_pos, action_direction));
+                // cloud_control.next_pushed_clouds.push((
+                //     [player_new_pos[0], player_new_pos[1] - 1],
+                //     action_direction,
+                //     PushState::CanPush,
+                // ));
+            }
+            _ => {}
+        }
+
+        grid_state.grid[player_new_pos[0] as usize][player_new_pos[1] as usize] =
+            TileOccupation::Player;
         if player_action != GameControl::Idle {
             info!("pl. pos: {:?}", player_control.player_pos)
         }
@@ -507,10 +567,6 @@ fn move_clouds(
         return;
     }
     let cloud_dir = cloud_control.cur_cloud_move.unwrap();
-    cloud_control.pushed_clouds = vec![];
-    cloud_control.next_pushed_clouds = vec![];
-
-    // WIP: deal with the case where a cloud is pushed outside the screen
 
     if cloud_dir == CloudDir::Down {
         for mut cloud_pos in down_query.iter_mut() {
@@ -664,12 +720,16 @@ fn move_clouds(
     cloud_control.cur_cloud_move = None;
 }
 
+// WIP: push the player as well
+// WIP: make the player push clouds
+
 /// Deal with the cloud which need to be pushed. At this stage, one already
 /// knows that the tile N+2 is empty to push the cloud
 #[allow(clippy::type_complexity)]
 fn push_clouds(
     mut commands: Commands,
     mut cloud_control: ResMut<CloudControl>,
+    mut player_control: ResMut<PlayerControl>,
     mut grid_state: ResMut<GridState>,
     mut query: Query<
         (&Cloud, &mut GridPos, Entity),
@@ -685,6 +745,40 @@ fn push_clouds(
 ) {
     // Move first the next cloud "pushed":
     for (pos, dir, push_type) in cloud_control.next_pushed_clouds.drain(..) {
+        // First push the player:
+        if player_control.player_pos == pos {
+            println!("{} {} {:?}", { "➤".blue() }, { "AAA:".blue() }, {
+                "push!"
+            });
+            match dir {
+                CloudDir::Up => {
+                    player_control.player_pos = [
+                        player_control.player_pos[0],
+                        player_control.player_pos[1] + 1,
+                    ]
+                }
+                CloudDir::Down => {
+                    player_control.player_pos = [
+                        player_control.player_pos[0],
+                        player_control.player_pos[1] - 1,
+                    ]
+                }
+                CloudDir::Left => {
+                    player_control.player_pos = [
+                        player_control.player_pos[0] - 1,
+                        player_control.player_pos[1],
+                    ]
+                }
+                CloudDir::Right => {
+                    player_control.player_pos = [
+                        player_control.player_pos[0] + 1,
+                        player_control.player_pos[1],
+                    ]
+                }
+            };
+            continue;
+        }
+
         for (cloud, mut cloud_pos, entity) in query.iter_mut() {
             if cloud_pos.pos == pos {
                 // If cloud to be pushed out of the board, despawn it instantly:

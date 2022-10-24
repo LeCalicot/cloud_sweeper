@@ -49,9 +49,8 @@ impl Plugin for GamePlugin {
             .add_plugin(ActionsPlugin)
             // .add_plugin(InternalAudioPlugin)
             .add_plugin(WorldPlugin)
-            // .add_plugin(PlayerPlugin)
+            .add_plugin(PlayerPlugin)
             .add_plugin(LogicPlugin);
-        // .add_plugin(CloudPlugin);
         #[cfg(debug_assertions)]
         {
             app.add_system(bevy::window::close_on_esc)

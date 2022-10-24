@@ -27,6 +27,7 @@ impl Plugin for PlayerPlugin {
             .add_system_set(
                 ConditionSet::new()
                     .run_in_state(GameState::Playing)
+                    .after("fill_player_buffer")
                     .with_system(animate_sprite)
                     .with_system(move_player)
                     .into(),
