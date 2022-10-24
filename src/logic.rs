@@ -48,6 +48,20 @@ impl Plugin for LogicPlugin {
             .add_system_set(
                 ConditionSet::new()
                     .run_in_state(GameState::Playing)
+                    .label("fill_player_buffer")
+                    .with_system(fill_player_buffer)
+                    .into(),
+            )
+            .add_system_set(
+                ConditionSet::new()
+                    .run_in_state(GameState::Playing)
+                    .label("pop_player_buffer")
+                    .with_system(pop_player_buffer)
+                    .into(),
+            )
+            .add_system_set(
+                ConditionSet::new()
+                    .run_in_state(GameState::Playing)
                     .label("move_clouds")
                     .after("tick_clock")
                     .with_system(move_clouds)
@@ -70,22 +84,6 @@ impl Plugin for LogicPlugin {
                     // .after("move_clouds")
                     .with_system(update_cloud_pos)
                     .with_system(despawn_clouds)
-                    .into(),
-            )
-            .add_system_set(
-                ConditionSet::new()
-                    .run_in_state(GameState::Playing)
-                    .label("pop_player_buffer")
-                    // .after("push_clouds")
-                    .with_system(pop_player_buffer)
-                    .into(),
-            )
-            .add_system_set(
-                ConditionSet::new()
-                    .run_in_state(GameState::Playing)
-                    .label("fill_player_buffer")
-                    .after("pop_player_buffer")
-                    .with_system(fill_player_buffer)
                     .into(),
             );
     }
@@ -266,6 +264,13 @@ impl GridState {
         let target_tile_occ = self.grid[tile[0] as usize][tile[1] as usize];
         // Nothing on the target tile, you are good to go:
         if target_tile_occ == TileOccupation::Empty {
+            println!(
+                "{} {} {:?} {:?}",
+                { "➤".blue() },
+                { "AAA:".blue() },
+                { "Empty!" },
+                { tile }
+            );
             return PushState::Empty;
         }
 
@@ -465,34 +470,36 @@ pub fn pop_player_buffer(
             }
             GameControl::Idle => [0, 0],
         };
+        let player_old_pos = player_control.player_pos.clone();
         let player_new_pos = [
             player_control.player_pos[0] + player_move[0],
             player_control.player_pos[1] + player_move[1],
         ];
 
-        match grid_state.is_occupied(player_new_pos, action_direction) {
-            PushState::Empty => {
-                player_control.player_pos = player_new_pos;
-            }
-            PushState::Blocked => {}
-            PushState::CanPush => {
-                // FIXME
-                // cloud_control
-                //     .pushed_clouds
-                //     .push((player_new_pos, action_direction));
-                // cloud_control.next_pushed_clouds.push((
-                //     [player_new_pos[0], player_new_pos[1] - 1],
-                //     action_direction,
-                //     PushState::CanPush,
-                // ));
-            }
-            _ => {}
-        }
-
-        grid_state.grid[player_new_pos[0] as usize][player_new_pos[1] as usize] =
-            TileOccupation::Player;
         if player_action != GameControl::Idle {
-            info!("pl. pos: {:?}", player_control.player_pos)
+            match grid_state.is_occupied(player_new_pos, action_direction) {
+                PushState::Empty => {
+                    player_control.player_pos = player_new_pos;
+                    info!("pl. pos: {:?}", player_control.player_pos);
+                    grid_state.grid[player_old_pos[0] as usize][player_old_pos[1] as usize] =
+                        TileOccupation::Empty;
+                    grid_state.grid[player_new_pos[0] as usize][player_new_pos[1] as usize] =
+                        TileOccupation::Player;
+                }
+                PushState::Blocked => {}
+                PushState::CanPush => {
+                    // FIXME
+                    // cloud_control
+                    //     .pushed_clouds
+                    //     .push((player_new_pos, action_direction));
+                    // cloud_control.next_pushed_clouds.push((
+                    //     [player_new_pos[0], player_new_pos[1] - 1],
+                    //     action_direction,
+                    //     PushState::CanPush,
+                    // ));
+                }
+                _ => {}
+            }
         }
     };
 }
@@ -720,7 +727,6 @@ fn move_clouds(
     cloud_control.cur_cloud_move = None;
 }
 
-// WIP: push the player as well
 // WIP: make the player push clouds
 
 /// Deal with the cloud which need to be pushed. At this stage, one already
@@ -747,9 +753,6 @@ fn push_clouds(
     for (pos, dir, push_type) in cloud_control.next_pushed_clouds.drain(..) {
         // First push the player:
         if player_control.player_pos == pos {
-            println!("{} {} {:?}", { "➤".blue() }, { "AAA:".blue() }, {
-                "push!"
-            });
             match dir {
                 CloudDir::Up => {
                     player_control.player_pos = [
