@@ -264,13 +264,6 @@ impl GridState {
         let target_tile_occ = self.grid[tile[0] as usize][tile[1] as usize];
         // Nothing on the target tile, you are good to go:
         if target_tile_occ == TileOccupation::Empty {
-            println!(
-                "{} {} {:?} {:?}",
-                { "➤".blue() },
-                { "AAA:".blue() },
-                { "Empty!" },
-                { tile }
-            );
             return PushState::Empty;
         }
 
@@ -332,9 +325,6 @@ impl GridState {
                 CloudDir::Up => match target_tile_occ {
                     TileOccupation::DownCloud => PushState::Blocked,
                     TileOccupation::Player => {
-                        println!("{} {} {:?}", { "➤".blue() }, { "BBB:".blue() }, {
-                            "push up"
-                        });
                         if tile[1] >= (STAGE_WIDTH + (LEVEL_SIZE - STAGE_WIDTH) / 2 - 1) as i8 {
                             PushState::Blocked
                         } else {
@@ -434,50 +424,73 @@ pub fn pop_player_buffer(
         player_control.input_buffer[0] = GameControl::Idle;
         player_control.input_buffer.rotate_left(1);
 
-        let mut action_direction = CloudDir::Down;
-        let player_move: [i8; 2] = match player_action {
-            GameControl::Down => {
-                action_direction = CloudDir::Down;
-                if player_control.player_pos[1] > (STAGE_BL[1] as i8) {
-                    [0, -1]
-                } else {
-                    [0, 0]
-                }
-            }
-            GameControl::Up => {
-                action_direction = CloudDir::Up;
-                if player_control.player_pos[1] < (STAGE_UR[1] as i8) {
-                    [0, 1]
-                } else {
-                    [0, 0]
-                }
-            }
-            GameControl::Left => {
-                action_direction = CloudDir::Left;
-                if player_control.player_pos[0] > (STAGE_BL[0] as i8) {
-                    [-1, 0]
-                } else {
-                    [0, 0]
-                }
-            }
-            GameControl::Right => {
-                action_direction = CloudDir::Right;
-                if player_control.player_pos[0] < (STAGE_UR[0] as i8) {
-                    [1, 0]
-                } else {
-                    [0, 0]
-                }
-            }
-            GameControl::Idle => [0, 0],
-        };
-        let player_old_pos = player_control.player_pos.clone();
-        let player_new_pos = [
-            player_control.player_pos[0] + player_move[0],
-            player_control.player_pos[1] + player_move[1],
-        ];
+        // let mut action_direction = CloudDir::Down;
 
+        let (player_new_pos, action_direction, push_state): ([i8; 2], CloudDir, PushState) =
+            match player_action {
+                GameControl::Down => {
+                    let new_pos = if player_control.player_pos[1] > (STAGE_BL[1] as i8) {
+                        [
+                            player_control.player_pos[0],
+                            player_control.player_pos[1] - 1,
+                        ]
+                    } else {
+                        player_control.player_pos.clone()
+                    };
+                    let dir = CloudDir::Down;
+                    (new_pos, dir, grid_state.is_occupied(new_pos, dir))
+                }
+                GameControl::Up => {
+                    let new_pos = if player_control.player_pos[1] < (STAGE_UR[1] as i8) {
+                        [
+                            player_control.player_pos[0],
+                            player_control.player_pos[1] + 1,
+                        ]
+                    } else {
+                        player_control.player_pos.clone()
+                    };
+                    let dir = CloudDir::Up;
+                    (new_pos, dir, grid_state.is_occupied(new_pos, dir))
+                }
+                GameControl::Left => {
+                    let new_pos = if player_control.player_pos[0] > (STAGE_BL[0] as i8) {
+                        [
+                            player_control.player_pos[0] - 1,
+                            player_control.player_pos[1],
+                        ]
+                    } else {
+                        player_control.player_pos.clone()
+                    };
+                    let dir = CloudDir::Left;
+                    (new_pos, dir, grid_state.is_occupied(new_pos, dir))
+                }
+                GameControl::Right => {
+                    let new_pos = if player_control.player_pos[0] < (STAGE_UR[0] as i8) {
+                        [
+                            player_control.player_pos[0] + 1,
+                            player_control.player_pos[1],
+                        ]
+                    } else {
+                        player_control.player_pos.clone()
+                    };
+                    let dir = CloudDir::Right;
+                    (new_pos, dir, grid_state.is_occupied(new_pos, dir))
+                }
+                GameControl::Idle => (
+                    player_control.player_pos.clone(),
+                    CloudDir::Right,
+                    PushState::Blocked,
+                ),
+            };
+        let player_old_pos = player_control.player_pos.clone();
+        // let player_new_pos = [
+        //     player_control.player_pos[0] + player_move[0],
+        //     player_control.player_pos[1] + player_move[1],
+        // ];
+
+        // (player_new_pos, action_direction, push_state)
         if player_action != GameControl::Idle {
-            match grid_state.is_occupied(player_new_pos, action_direction) {
+            match push_state {
                 PushState::Empty => {
                     player_control.player_pos = player_new_pos;
                     info!("pl. pos: {:?}", player_control.player_pos);
@@ -488,15 +501,59 @@ pub fn pop_player_buffer(
                 }
                 PushState::Blocked => {}
                 PushState::CanPush => {
-                    // FIXME
-                    // cloud_control
-                    //     .pushed_clouds
-                    //     .push((player_new_pos, action_direction));
-                    // cloud_control.next_pushed_clouds.push((
-                    //     [player_new_pos[0], player_new_pos[1] - 1],
-                    //     action_direction,
-                    //     PushState::CanPush,
-                    // ));
+                    // player_control.player_pos = player_new_pos;
+                    // info!("pl. pos: {:?}", player_control.player_pos);
+                    // grid_state.grid[player_old_pos[0] as usize][player_old_pos[1] as usize] =
+                    //     TileOccupation::Empty;
+                    // grid_state.grid[player_new_pos[0] as usize][player_new_pos[1] as usize] =
+                    //     TileOccupation::Player;
+                    cloud_control
+                        .pushed_clouds
+                        .push((player_old_pos, action_direction));
+                    match action_direction {
+                        CloudDir::Up => cloud_control.next_pushed_clouds.push((
+                            player_new_pos,
+                            action_direction,
+                            PushState::CanPush,
+                        )),
+                        CloudDir::Down => cloud_control.next_pushed_clouds.push((
+                            player_new_pos,
+                            action_direction,
+                            PushState::CanPush,
+                        )),
+                        CloudDir::Left => cloud_control.next_pushed_clouds.push((
+                            player_new_pos,
+                            action_direction,
+                            PushState::CanPush,
+                        )),
+                        CloudDir::Right => cloud_control.next_pushed_clouds.push((
+                            player_new_pos,
+                            action_direction,
+                            PushState::CanPush,
+                        )),
+                    };
+                    // match action_direction {
+                    //     CloudDir::Up => cloud_control.next_pushed_clouds.push((
+                    //         [player_new_pos[0], player_new_pos[1] + 1],
+                    //         action_direction,
+                    //         PushState::CanPush,
+                    //     )),
+                    //     CloudDir::Down => cloud_control.next_pushed_clouds.push((
+                    //         [player_new_pos[0], player_new_pos[1] - 1],
+                    //         action_direction,
+                    //         PushState::CanPush,
+                    //     )),
+                    //     CloudDir::Left => cloud_control.next_pushed_clouds.push((
+                    //         [player_new_pos[0] - 1, player_new_pos[1]],
+                    //         action_direction,
+                    //         PushState::CanPush,
+                    //     )),
+                    //     CloudDir::Right => cloud_control.next_pushed_clouds.push((
+                    //         [player_new_pos[0] + 1, player_new_pos[1]],
+                    //         action_direction,
+                    //         PushState::CanPush,
+                    //     )),
+                    // };
                 }
                 _ => {}
             }
@@ -779,6 +836,9 @@ fn push_clouds(
                     ]
                 }
             };
+            grid_state.grid[pos[0] as usize][pos[1] as usize] = TileOccupation::Empty;
+            grid_state.grid[player_control.player_pos[0] as usize]
+                [player_control.player_pos[1] as usize] = TileOccupation::Player;
             continue;
         }
 
@@ -853,6 +913,41 @@ fn push_clouds(
 
     // Then move the actual clouds pushing the other one:
     for (pos, dir) in cloud_control.pushed_clouds.drain(..) {
+        // First move the player:
+        // First push the player:
+        if player_control.player_pos == pos {
+            match dir {
+                CloudDir::Up => {
+                    player_control.player_pos = [
+                        player_control.player_pos[0],
+                        player_control.player_pos[1] + 1,
+                    ]
+                }
+                CloudDir::Down => {
+                    player_control.player_pos = [
+                        player_control.player_pos[0],
+                        player_control.player_pos[1] - 1,
+                    ]
+                }
+                CloudDir::Left => {
+                    player_control.player_pos = [
+                        player_control.player_pos[0] - 1,
+                        player_control.player_pos[1],
+                    ]
+                }
+                CloudDir::Right => {
+                    player_control.player_pos = [
+                        player_control.player_pos[0] + 1,
+                        player_control.player_pos[1],
+                    ]
+                }
+            };
+            grid_state.grid[pos[0] as usize][pos[1] as usize] = TileOccupation::Empty;
+            grid_state.grid[player_control.player_pos[0] as usize]
+                [player_control.player_pos[1] as usize] = TileOccupation::Player;
+            continue;
+        }
+
         for (_, mut cloud_pos, _) in query.iter_mut() {
             if cloud_pos.pos == pos {
                 match dir {
