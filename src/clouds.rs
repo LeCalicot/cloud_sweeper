@@ -1,6 +1,6 @@
 use crate::{
     actions::GameControl,
-    logic::{CloudControl, GridState},
+    logic::{CloudControl, GridState, PUSH_COOLDOWN},
     player::TILE_SIZE,
     GameState,
 };
@@ -45,17 +45,15 @@ pub enum CloudDir {
     Right,
 }
 
-// impl Plugin for CloudPlugin {
-//     fn build(&self, app: &mut App) {
-//         app.add_system_set(
-//             ConditionSet::new()
-//                 .run_in_state(GameState::Playing)
-//                 .with_system(new_cloud)
-//                 // .with_system(update_cloud_pos)
-//                 .into(),
-//         );
-//     }
-// }
+#[derive(Component)]
+pub struct IsCooldown {
+    pub val: bool,
+}
+
+#[derive(Component, Deref, DerefMut)]
+pub struct CooldownTimer {
+    pub timer: Timer,
+}
 
 pub fn new_cloud(
     mut cloud_control: ResMut<CloudControl>,
@@ -74,9 +72,13 @@ pub fn new_cloud(
                         ..default()
                     })
                     .insert(DownCloud)
+                    .insert(CooldownTimer {
+                        timer: Timer::from_seconds(PUSH_COOLDOWN, true),
+                    })
                     .insert(Cloud {
                         dir: CloudDir::Down,
                     })
+                    .insert(IsCooldown { val: false })
                     .insert(GridPos {
                         pos: cloud_pos_grid,
                     });
@@ -89,9 +91,13 @@ pub fn new_cloud(
                         ..default()
                     })
                     .insert(LeftCloud)
+                    .insert(CooldownTimer {
+                        timer: Timer::from_seconds(PUSH_COOLDOWN, true),
+                    })
                     .insert(Cloud {
                         dir: CloudDir::Left,
                     })
+                    .insert(IsCooldown { val: false })
                     .insert(GridPos {
                         pos: cloud_pos_grid,
                     });
@@ -104,6 +110,10 @@ pub fn new_cloud(
                         ..default()
                     })
                     .insert(UpCloud)
+                    .insert(CooldownTimer {
+                        timer: Timer::from_seconds(PUSH_COOLDOWN, true),
+                    })
+                    .insert(IsCooldown { val: false })
                     .insert(Cloud { dir: CloudDir::Up })
                     .insert(GridPos {
                         pos: cloud_pos_grid,
@@ -120,6 +130,10 @@ pub fn new_cloud(
                     .insert(Cloud {
                         dir: CloudDir::Right,
                     })
+                    .insert(CooldownTimer {
+                        timer: Timer::from_seconds(PUSH_COOLDOWN, true),
+                    })
+                    .insert(IsCooldown { val: false })
                     .insert(GridPos {
                         pos: cloud_pos_grid,
                     });
