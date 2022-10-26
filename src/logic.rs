@@ -27,8 +27,18 @@ use iyes_loopless::prelude::*;
 use rand::seq::SliceRandom;
 
 const MAX_BUFFER_INPUT: usize = 10;
-const MOVE_TIMER: f32 = 0.050;
-const CLOUD_TIMER: f32 = 1.0;
+const MOVE_TIMER: f32 = 0.020;
+// Multiple of the move timer:
+const SPAWN_FREQUENCY: u8 = 4;
+// Offset for delaying cloud spawning depending on the direction:
+const SPAWN_OFFSET: [u8; 4] = [0, 1, 0, 1];
+const CLOUD_TIMER: f32 = 0.4;
+const SEQUENCE: [CloudDir; 4] = [
+    CloudDir::Left,
+    CloudDir::Up,
+    CloudDir::Right,
+    CloudDir::Down,
+];
 pub struct LogicPlugin;
 
 /// This plugin handles player related stuff like movement
@@ -104,8 +114,9 @@ pub struct CloudControl {
     pub cur_new_cloud: Option<CloudDir>,
     pub cur_cloud_move: Option<CloudDir>,
     cur_cloud: CloudDir,
-    timer: Timer,
+    move_timer: Timer,
     sequence: [CloudDir; 4],
+    spawn_counter: [u8; 4],
     pushed_clouds: Vec<([i8; 2], CloudDir)>,
     next_pushed_clouds: Vec<([i8; 2], CloudDir, PushState)>,
 }
@@ -374,13 +385,14 @@ fn set_up_logic(mut commands: Commands) {
     commands.insert_resource(CloudControl {
         cur_new_cloud: None,
         cur_cloud_move: None,
-        timer: Timer::from_seconds(CLOUD_TIMER, true),
+        move_timer: Timer::from_seconds(CLOUD_TIMER, true),
         cur_cloud: CloudDir::Left,
-        sequence: [
-            CloudDir::Left,
-            CloudDir::Up,
-            CloudDir::Right,
-            CloudDir::Down,
+        sequence: SEQUENCE,
+        spawn_counter: [
+            SPAWN_OFFSET[0],
+            SPAWN_OFFSET[1],
+            SPAWN_OFFSET[2],
+            SPAWN_OFFSET[3],
         ],
         ..Default::default()
     });
@@ -573,15 +585,27 @@ impl CloudControl {
 
 fn tick_timer(mut cloud_control: ResMut<CloudControl>, time: Res<Time>) {
     // timers gotta be ticked, to work
-    cloud_control.timer.tick(time.delta());
+    cloud_control.move_timer.tick(time.delta());
+}
+
+fn dir_index(cloud_dir: CloudDir) -> usize {
+    SEQUENCE.iter().position(|&x| x == cloud_dir).unwrap()
 }
 
 fn set_cloud_direction(mut cloud_control: ResMut<CloudControl>) {
-    if cloud_control.timer.finished() {
+    if cloud_control.move_timer.finished() {
         let cloud_dir = Some(cloud_control.next_cloud_direction());
         info!("cloud dir.: {:?}", cloud_dir.unwrap());
-        cloud_control.cur_new_cloud = cloud_dir;
         cloud_control.cur_cloud_move = cloud_dir;
+
+        let uw_cloud_dir = cloud_dir.unwrap();
+        cloud_control.spawn_counter[dir_index(uw_cloud_dir) as usize] =
+            (cloud_control.spawn_counter[dir_index(uw_cloud_dir) as usize] + 1) % SPAWN_FREQUENCY;
+        if cloud_control.spawn_counter[dir_index(uw_cloud_dir) as usize] == 0 {
+            cloud_control.cur_new_cloud = cloud_dir;
+        } else {
+            cloud_control.cur_new_cloud = None
+        }
     }
 }
 
