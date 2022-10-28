@@ -1,26 +1,15 @@
 #![cfg_attr(debug_assertions, allow(dead_code, unused_imports))]
 
-use crate::actions::Actions;
-use crate::actions::GameControl;
+use crate::actions::{Actions, GameControl};
 use crate::clouds;
-use crate::clouds::Cloud;
-use crate::clouds::CloudDir;
-use crate::clouds::CooldownTimer;
-use crate::clouds::DownCloud;
-use crate::clouds::GridPos;
-use crate::clouds::IsCooldown;
-use crate::clouds::LeftCloud;
-use crate::clouds::RightCloud;
-use crate::clouds::UpCloud;
-use crate::clouds::CLOUD_LAYER;
+use crate::clouds::{
+    Cloud, CloudDir, CooldownTimer, DownCloud, GridPos, IsCooldown, LeftCloud, RightCloud, UpCloud,
+    CLOUD_LAYER,
+};
+
 use crate::loading::TextureAssets;
-use crate::player::Player;
-use crate::player::INIT_POS;
-use crate::player::TILE_SIZE;
-use crate::world::LEVEL_SIZE;
-use crate::world::STAGE_BL;
-use crate::world::STAGE_UR;
-use crate::world::STAGE_WIDTH;
+use crate::player::{Player, INIT_POS, TILE_SIZE};
+use crate::world::{LEVEL_SIZE, STAGE_BL, STAGE_UR, STAGE_WIDTH};
 use crate::GameState;
 use bevy::prelude::*;
 use bevy::render::texture::ImageSettings;
@@ -452,7 +441,7 @@ pub fn pop_player_buffer(
                             player_control.player_pos[1] - 1,
                         ]
                     } else {
-                        player_control.player_pos.clone()
+                        player_control.player_pos
                     };
                     let dir = CloudDir::Down;
                     (new_pos, dir, grid_state.is_occupied(new_pos, dir))
@@ -464,7 +453,7 @@ pub fn pop_player_buffer(
                             player_control.player_pos[1] + 1,
                         ]
                     } else {
-                        player_control.player_pos.clone()
+                        player_control.player_pos
                     };
                     let dir = CloudDir::Up;
                     (new_pos, dir, grid_state.is_occupied(new_pos, dir))
@@ -476,7 +465,7 @@ pub fn pop_player_buffer(
                             player_control.player_pos[1],
                         ]
                     } else {
-                        player_control.player_pos.clone()
+                        player_control.player_pos
                     };
                     let dir = CloudDir::Left;
                     (new_pos, dir, grid_state.is_occupied(new_pos, dir))
@@ -488,24 +477,19 @@ pub fn pop_player_buffer(
                             player_control.player_pos[1],
                         ]
                     } else {
-                        player_control.player_pos.clone()
+                        player_control.player_pos
                     };
                     let dir = CloudDir::Right;
                     (new_pos, dir, grid_state.is_occupied(new_pos, dir))
                 }
                 GameControl::Idle => (
-                    player_control.player_pos.clone(),
+                    player_control.player_pos,
                     CloudDir::Right,
                     PushState::Blocked,
                 ),
             };
-        let player_old_pos = player_control.player_pos.clone();
-        // let player_new_pos = [
-        //     player_control.player_pos[0] + player_move[0],
-        //     player_control.player_pos[1] + player_move[1],
-        // ];
+        let player_old_pos = player_control.player_pos;
 
-        // (player_new_pos, action_direction, push_state)
         if player_action != GameControl::Idle {
             match push_state {
                 PushState::Empty => {
@@ -543,28 +527,6 @@ pub fn pop_player_buffer(
                             PushState::CanPushPlayer,
                         )),
                     };
-                    // match action_direction {
-                    //     CloudDir::Up => cloud_control.next_pushed_clouds.push((
-                    //         [player_new_pos[0], player_new_pos[1] + 1],
-                    //         action_direction,
-                    //         PushState::CanPush,
-                    //     )),
-                    //     CloudDir::Down => cloud_control.next_pushed_clouds.push((
-                    //         [player_new_pos[0], player_new_pos[1] - 1],
-                    //         action_direction,
-                    //         PushState::CanPush,
-                    //     )),
-                    //     CloudDir::Left => cloud_control.next_pushed_clouds.push((
-                    //         [player_new_pos[0] - 1, player_new_pos[1]],
-                    //         action_direction,
-                    //         PushState::CanPush,
-                    //     )),
-                    //     CloudDir::Right => cloud_control.next_pushed_clouds.push((
-                    //         [player_new_pos[0] + 1, player_new_pos[1]],
-                    //         action_direction,
-                    //         PushState::CanPush,
-                    //     )),
-                    // };
                 }
                 _ => {}
             }
