@@ -109,6 +109,4 @@ fn setup_world(mut commands: Commands, asset_server: Res<AssetServer>) {
         });
 }
 
-// fn draw_grid(tile_query: Query<&mut TileVisible>) {}
-
 fn update_world() {}
