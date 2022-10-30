@@ -60,6 +60,7 @@ impl Plugin for LogicPlugin {
                     .run_in_state(GameState::Playing)
                     .label("pop_player_buffer")
                     .with_system(pop_player_buffer)
+                    .with_system(check_lose_condition)
                     .into(),
             )
             .add_system_set(
@@ -167,6 +168,10 @@ impl Default for GridState {
 }
 
 impl GridState {
+    pub fn reset_grid(&mut self) {
+        *self = GridState::default();
+    }
+
     fn up_row(&self) -> [[i8; 2]; STAGE_WIDTH as usize] {
         let mut res = [[0i8, 0i8]; STAGE_WIDTH as usize];
         for (ndx, i) in (((LEVEL_SIZE - STAGE_WIDTH) / 2)
@@ -366,6 +371,45 @@ impl GridState {
                     _ => PushState::CanPush,
                 },
             }
+        }
+    }
+}
+
+/// Check whether the player cannot move at all, then it loses.
+fn check_lose_condition(
+    mut commands: Commands,
+    grid_state: ResMut<GridState>,
+    player_control: ResMut<PlayerControl>,
+) {
+    let next_tiles = [
+        [
+            player_control.player_pos[0] - 1,
+            player_control.player_pos[1],
+        ],
+        [
+            player_control.player_pos[0],
+            player_control.player_pos[1] + 1,
+        ],
+        [
+            player_control.player_pos[0] + 1,
+            player_control.player_pos[1],
+        ],
+        [
+            player_control.player_pos[0],
+            player_control.player_pos[1] - 1,
+        ],
+    ];
+    let mut is_blocked = [false, false, false, false];
+
+    for (i, tile) in next_tiles.into_iter().enumerate() {
+        is_blocked[i] = matches!(
+            grid_state.is_occupied(tile, SEQUENCE[i]),
+            PushState::Blocked
+        );
+        // TODO: change the condition here
+        let has_lost = is_blocked.into_iter().all(|x| x);
+        if has_lost {
+            commands.insert_resource(NextState(GameState::GameOver))
         }
     }
 }

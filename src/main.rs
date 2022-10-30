@@ -11,8 +11,8 @@ use cloud_sweeper::GamePlugin;
 use std::io::Cursor;
 use winit::window::Icon;
 
-// TODO: factorize the 4 direction by having a function which returns the value to add (+1,-1,..)
-// TODO: add lose condition
+// TODO: simplify the structure: do like the game menu example in bevy main
+// TODO: add lose condition -> add state for that
 // TODO: add tweaning
 // TODO: add music
 
