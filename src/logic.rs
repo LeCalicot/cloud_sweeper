@@ -20,10 +20,12 @@ use rand::seq::SliceRandom;
 const MAX_BUFFER_INPUT: usize = 10;
 const MOVE_TIMER: f32 = 0.020;
 // Multiple of the move timer:
-const SPAWN_FREQUENCY: u8 = 4;
+// const SPAWN_FREQUENCY: u8 = 4;
+const SPAWN_FREQUENCY: u8 = 1;
 // Offset for delaying cloud spawning depending on the direction:
 const SPAWN_OFFSET: [u8; 4] = [0, 1, 0, 1];
-const CLOUD_TIMER: f32 = 0.4;
+const CLOUD_TIMER: f32 = 0.2;
+// const CLOUD_TIMER: f32 = 0.4;
 const SEQUENCE: [CloudDir; 4] = [
     CloudDir::Left,
     CloudDir::Up,
@@ -217,6 +219,13 @@ impl GridState {
         res
     }
 
+    pub fn is_sky(&self, tile: [i8; 2]) -> bool {
+        tile[0] < STAGE_BL[0] as i8
+            || tile[1] < STAGE_BL[1] as i8
+            || tile[0] > STAGE_UR[0] as i8
+            || tile[1] > STAGE_UR[1] as i8
+    }
+
     pub fn is_out_of_range(&self, tile: [i8; 2]) -> bool {
         0 > tile[0] || tile[0] >= LEVEL_SIZE as i8 || 0 > tile[1] || tile[1] >= LEVEL_SIZE as i8
     }
@@ -231,19 +240,11 @@ impl GridState {
 
         let non_occupied: Vec<[i8; 2]> = line
             .into_iter()
-            .filter(|v| (self.is_occupied(*v, border) == PushState::Empty))
+            .filter(|v| self.is_occupied(*v, border, dir_to_tile(border)) == PushState::Empty)
             .collect();
         if let Some(pos) = non_occupied.choose(&mut rand::thread_rng()) {
             // Add the cloud to the grid
-            self.populate_tile_with_cloud(
-                *pos,
-                match border {
-                    CloudDir::Down => TileOccupation::DownCloud,
-                    CloudDir::Up => TileOccupation::UpCloud,
-                    CloudDir::Left => TileOccupation::LeftCloud,
-                    CloudDir::Right => TileOccupation::RightCloud,
-                },
-            );
+            self.populate_tile_with_cloud(*pos, dir_to_tile(border));
             Some((grid_to_vec(*pos), *pos))
         } else {
             None
@@ -272,7 +273,8 @@ impl GridState {
 
     /// Check whether the next tile is occupied. Here the function is called on
     /// the tile N+1 such that we check the tile N+2
-    fn is_occupied(&self, tile: [i8; 2], dir: CloudDir) -> PushState {
+    fn is_occupied(&self, tile: [i8; 2], dir: CloudDir, object: TileOccupation) -> PushState {
+        // WIP: deal with the case where there is the player going to the sky
         if self.is_out_of_range(tile) {
             return PushState::Despawn;
         }
@@ -320,11 +322,17 @@ impl GridState {
             TileOccupation::Empty | TileOccupation::Despawn
         ));
 
+        // Case where the player is close to the edge of the stage
+        if object == TileOccupation::Player && self.is_sky(tile) {
+            return PushState::Blocked;
+        }
+
         // Case where there is something behind, just forget it
         if tile_np2_occupied {
             PushState::Blocked
         } else {
-            // case where there is something behind, it depends on the target tile
+            // case where the tile behind is empty, it depends on the target
+            // tile
             match dir {
                 CloudDir::Down => match target_tile_occ {
                     TileOccupation::UpCloud => PushState::Blocked,
@@ -403,10 +411,9 @@ fn check_lose_condition(
 
     for (i, tile) in next_tiles.into_iter().enumerate() {
         is_blocked[i] = matches!(
-            grid_state.is_occupied(tile, SEQUENCE[i]),
+            grid_state.is_occupied(tile, SEQUENCE[i], TileOccupation::Player),
             PushState::Blocked
         );
-        // TODO: change the condition here
         let has_lost = is_blocked.into_iter().all(|x| x);
         if has_lost {
             commands.insert_resource(NextState(GameState::GameOver))
@@ -430,6 +437,16 @@ fn despawn_clouds(
 
 fn dir_index(cloud_dir: CloudDir) -> usize {
     SEQUENCE.iter().position(|&x| x == cloud_dir).unwrap()
+}
+
+/// Transform a cloud direcion into a TileOccupatio enum
+fn dir_to_tile(dir: CloudDir) -> TileOccupation {
+    match dir {
+        CloudDir::Down => TileOccupation::DownCloud,
+        CloudDir::Up => TileOccupation::UpCloud,
+        CloudDir::Left => TileOccupation::LeftCloud,
+        CloudDir::Right => TileOccupation::RightCloud,
+    }
 }
 
 /// Add all the actions (moves) to the buffer whose elements are going to be popped
@@ -515,8 +532,11 @@ fn move_clouds(
                 if is_cooling.val {
                     continue;
                 }
-                let next_tile_push =
-                    grid_state.is_occupied([cloud_pos.pos[0], cloud_pos.pos[1] - 1i8], cloud_dir);
+                let next_tile_push = grid_state.is_occupied(
+                    [cloud_pos.pos[0], cloud_pos.pos[1] - 1i8],
+                    cloud_dir,
+                    dir_to_tile(cloud_dir),
+                );
 
                 match next_tile_push {
                     PushState::Blocked => continue,
@@ -564,8 +584,11 @@ fn move_clouds(
                 if is_cooling.val {
                     continue;
                 }
-                let next_tile_push =
-                    grid_state.is_occupied([cloud_pos.pos[0] - 1i8, cloud_pos.pos[1]], cloud_dir);
+                let next_tile_push = grid_state.is_occupied(
+                    [cloud_pos.pos[0] - 1i8, cloud_pos.pos[1]],
+                    cloud_dir,
+                    dir_to_tile(cloud_dir),
+                );
                 match next_tile_push {
                     PushState::Blocked => continue,
                     PushState::Despawn => {
@@ -612,8 +635,11 @@ fn move_clouds(
                 if is_cooling.val {
                     continue;
                 }
-                let next_tile_push =
-                    grid_state.is_occupied([cloud_pos.pos[0], cloud_pos.pos[1] + 1i8], cloud_dir);
+                let next_tile_push = grid_state.is_occupied(
+                    [cloud_pos.pos[0], cloud_pos.pos[1] + 1i8],
+                    cloud_dir,
+                    dir_to_tile(cloud_dir),
+                );
                 match next_tile_push {
                     PushState::Blocked => continue,
                     PushState::Despawn => {
@@ -660,8 +686,11 @@ fn move_clouds(
                 if is_cooling.val {
                     continue;
                 }
-                let next_tile_push =
-                    grid_state.is_occupied([cloud_pos.pos[0] + 1i8, cloud_pos.pos[1]], cloud_dir);
+                let next_tile_push = grid_state.is_occupied(
+                    [cloud_pos.pos[0] + 1i8, cloud_pos.pos[1]],
+                    cloud_dir,
+                    dir_to_tile(cloud_dir),
+                );
                 match next_tile_push {
                     PushState::Blocked => continue,
                     PushState::Despawn => {
@@ -737,7 +766,11 @@ pub fn pop_player_buffer(
                         player_control.player_pos
                     };
                     let dir = CloudDir::Down;
-                    (new_pos, dir, grid_state.is_occupied(new_pos, dir))
+                    (
+                        new_pos,
+                        dir,
+                        grid_state.is_occupied(new_pos, dir, TileOccupation::Player),
+                    )
                 }
                 GameControl::Up => {
                     let new_pos = if player_control.player_pos[1] < (STAGE_UR[1] as i8) {
@@ -749,7 +782,11 @@ pub fn pop_player_buffer(
                         player_control.player_pos
                     };
                     let dir = CloudDir::Up;
-                    (new_pos, dir, grid_state.is_occupied(new_pos, dir))
+                    (
+                        new_pos,
+                        dir,
+                        grid_state.is_occupied(new_pos, dir, TileOccupation::Player),
+                    )
                 }
                 GameControl::Left => {
                     let new_pos = if player_control.player_pos[0] > (STAGE_BL[0] as i8) {
@@ -761,7 +798,11 @@ pub fn pop_player_buffer(
                         player_control.player_pos
                     };
                     let dir = CloudDir::Left;
-                    (new_pos, dir, grid_state.is_occupied(new_pos, dir))
+                    (
+                        new_pos,
+                        dir,
+                        grid_state.is_occupied(new_pos, dir, TileOccupation::Player),
+                    )
                 }
                 GameControl::Right => {
                     let new_pos = if player_control.player_pos[0] < (STAGE_UR[0] as i8) {
@@ -773,7 +814,11 @@ pub fn pop_player_buffer(
                         player_control.player_pos
                     };
                     let dir = CloudDir::Right;
-                    (new_pos, dir, grid_state.is_occupied(new_pos, dir))
+                    (
+                        new_pos,
+                        dir,
+                        grid_state.is_occupied(new_pos, dir, TileOccupation::Player),
+                    )
                 }
                 GameControl::Idle => (
                     player_control.player_pos,
