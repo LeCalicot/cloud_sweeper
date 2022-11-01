@@ -21,10 +21,8 @@ const MAX_BUFFER_INPUT: usize = 10;
 const MOVE_TIMER: f32 = 0.020;
 // Multiple of the move timer:
 const SPAWN_FREQUENCY: u8 = 4;
-// const SPAWN_FREQUENCY: u8 = 1;
 // Offset for delaying cloud spawning depending on the direction:
 const SPAWN_OFFSET: [u8; 4] = [0, 1, 0, 1];
-// const CLOUD_TIMER: f32 = 0.2;
 const CLOUD_TIMER: f32 = 0.4;
 const SEQUENCE: [CloudDir; 4] = [
     CloudDir::Left,
@@ -163,9 +161,9 @@ pub struct PlayerControl {
 
 impl Default for GridState {
     fn default() -> Self {
-        GridState {
-            grid: [[TileOccupation::Empty; LEVEL_SIZE as usize]; LEVEL_SIZE as usize],
-        }
+        let mut tmp_grid = [[TileOccupation::Empty; LEVEL_SIZE as usize]; LEVEL_SIZE as usize];
+        tmp_grid[INIT_POS[0] as usize][INIT_POS[1] as usize] = TileOccupation::Player;
+        GridState { grid: tmp_grid }
     }
 }
 
@@ -220,10 +218,10 @@ impl GridState {
     }
 
     pub fn is_sky(&self, tile: [i8; 2]) -> bool {
-        tile[0] < STAGE_BL[0] as i8
-            || tile[1] < STAGE_BL[1] as i8
-            || tile[0] > STAGE_UR[0] as i8
-            || tile[1] > STAGE_UR[1] as i8
+        tile[0] < (STAGE_BL[0] as i8)
+            || tile[1] < (STAGE_BL[1] as i8)
+            || tile[0] > (STAGE_UR[0] as i8)
+            || tile[1] > (STAGE_UR[1] as i8)
     }
 
     pub fn is_out_of_range(&self, tile: [i8; 2]) -> bool {
@@ -274,10 +272,17 @@ impl GridState {
     /// Check whether the next tile is occupied. Here the function is called on
     /// the tile N+1 such that we check the tile N+2
     fn is_occupied(&self, tile: [i8; 2], dir: CloudDir, object: TileOccupation) -> PushState {
-        // WIP: deal with the case where there is the player going to the sky
         if self.is_out_of_range(tile) {
             return PushState::Despawn;
         }
+
+        /* ▓▓▓▓▓ Case where the player is close to the edge of the stage ▓▓▓▓ */
+        // To do before checking whether the cell is empty since we detect sky
+        // tiles as empty
+        if object == TileOccupation::Player && self.is_sky(tile) {
+            return PushState::Blocked;
+        }
+
         let target_tile_occ = self.grid[tile[0] as usize][tile[1] as usize];
         // Nothing on the target tile, you are good to go:
         if target_tile_occ == TileOccupation::Empty {
@@ -321,11 +326,6 @@ impl GridState {
             next_tile_occ,
             TileOccupation::Empty | TileOccupation::Despawn
         ));
-
-        // Case where the player is close to the edge of the stage
-        if object == TileOccupation::Player && self.is_sky(tile) {
-            return PushState::Blocked;
-        }
 
         // Case where there is something behind, just forget it
         if tile_np2_occupied {
@@ -1090,7 +1090,7 @@ fn push_clouds(
 fn set_cloud_direction(mut cloud_control: ResMut<CloudControl>) {
     if cloud_control.move_timer.finished() {
         let cloud_dir = Some(cloud_control.next_cloud_direction());
-        info!("cloud dir.: {:?}", cloud_dir.unwrap());
+        debug!("cloud dir.: {:?}", cloud_dir.unwrap());
         cloud_control.cur_cloud_move = cloud_dir;
 
         let uw_cloud_dir = cloud_dir.unwrap();
