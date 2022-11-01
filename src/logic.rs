@@ -23,7 +23,8 @@ const MOVE_TIMER: f32 = 0.020;
 const SPAWN_FREQUENCY: u8 = 4;
 // Offset for delaying cloud spawning depending on the direction:
 const SPAWN_OFFSET: [u8; 4] = [0, 1, 0, 1];
-const CLOUD_TIMER: f32 = 0.4;
+const CLOUD_TIMER: f32 = 0.1;
+// const CLOUD_TIMER: f32 = 0.4;
 const SEQUENCE: [CloudDir; 4] = [
     CloudDir::Left,
     CloudDir::Up,
@@ -423,13 +424,15 @@ fn check_lose_condition(
 
 fn despawn_clouds(
     mut commands: Commands,
-    grid_state: ResMut<GridState>,
+    mut grid_state: ResMut<GridState>,
     mut query: Query<(&mut GridPos, Entity), (With<Cloud>,)>,
 ) {
     for (cloud_pos, entity) in query.iter_mut() {
         if grid_state.grid[cloud_pos.pos[0] as usize][cloud_pos.pos[1] as usize]
             == TileOccupation::Despawn
         {
+            grid_state.grid[cloud_pos.pos[0] as usize][cloud_pos.pos[1] as usize] =
+                TileOccupation::Empty;
             commands.entity(entity).despawn();
         }
     }
