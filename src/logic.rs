@@ -20,12 +20,12 @@ use rand::seq::SliceRandom;
 const MAX_BUFFER_INPUT: usize = 10;
 const MOVE_TIMER: f32 = 0.020;
 // Multiple of the move timer:
-// const SPAWN_FREQUENCY: u8 = 4;
-const SPAWN_FREQUENCY: u8 = 1;
+const SPAWN_FREQUENCY: u8 = 4;
+// const SPAWN_FREQUENCY: u8 = 1;
 // Offset for delaying cloud spawning depending on the direction:
 const SPAWN_OFFSET: [u8; 4] = [0, 1, 0, 1];
-const CLOUD_TIMER: f32 = 0.2;
-// const CLOUD_TIMER: f32 = 0.4;
+// const CLOUD_TIMER: f32 = 0.2;
+const CLOUD_TIMER: f32 = 0.4;
 const SEQUENCE: [CloudDir; 4] = [
     CloudDir::Left,
     CloudDir::Up,
@@ -33,6 +33,8 @@ const SEQUENCE: [CloudDir; 4] = [
     CloudDir::Down,
 ];
 pub const PUSH_COOLDOWN: f32 = 0.4;
+
+// WIP, FIXME: there is a bug where the player can push a cloud right after it moved
 
 pub struct LogicPlugin;
 
@@ -163,8 +165,6 @@ impl Default for GridState {
     fn default() -> Self {
         GridState {
             grid: [[TileOccupation::Empty; LEVEL_SIZE as usize]; LEVEL_SIZE as usize],
-            // pushed_clouds: vec![],
-            // next_pushed_clouds: vec![],
         }
     }
 }
@@ -892,7 +892,7 @@ fn push_clouds(
         ),
     >,
 ) {
-    // Move first the next cloud "pushed":
+    /* ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ Move first the next cloud "pushed": ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ */
     for (pos, dir, push_type) in cloud_control.next_pushed_clouds.drain(..) {
         // First push the player:
         if player_control.player_pos == pos {
@@ -1009,7 +1009,7 @@ fn push_clouds(
         }
     }
 
-    // Then move the actual clouds pushing the other one:
+    /* ▓▓▓▓▓▓▓▓▓ Then move the actual clouds pushing the other one: ▓▓▓▓▓▓▓▓▓ */
     for (pos, dir) in cloud_control.pushed_clouds.drain(..) {
         // First move the player:
         // First push the player:
@@ -1053,7 +1053,7 @@ fn push_clouds(
                         grid_state.move_on_grid(
                             cloud_pos.pos,
                             [cloud_pos.pos[0], cloud_pos.pos[1] - 1i8],
-                            TileOccupation::DownCloud,
+                            dir_to_tile(dir),
                         );
                         cloud_pos.pos[1] += -1i8;
                     }
@@ -1061,7 +1061,7 @@ fn push_clouds(
                         grid_state.move_on_grid(
                             cloud_pos.pos,
                             [cloud_pos.pos[0] - 1i8, cloud_pos.pos[1]],
-                            TileOccupation::DownCloud,
+                            dir_to_tile(dir),
                         );
                         cloud_pos.pos[0] += -1i8;
                     }
@@ -1069,7 +1069,7 @@ fn push_clouds(
                         grid_state.move_on_grid(
                             cloud_pos.pos,
                             [cloud_pos.pos[0] + 1i8, cloud_pos.pos[1]],
-                            TileOccupation::DownCloud,
+                            dir_to_tile(dir),
                         );
                         cloud_pos.pos[0] += 1i8;
                     }
@@ -1077,7 +1077,7 @@ fn push_clouds(
                         grid_state.move_on_grid(
                             cloud_pos.pos,
                             [cloud_pos.pos[0], cloud_pos.pos[1] + 1i8],
-                            TileOccupation::UpCloud,
+                            dir_to_tile(dir),
                         );
                         cloud_pos.pos[1] += 1i8;
                     }
