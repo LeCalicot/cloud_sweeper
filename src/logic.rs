@@ -8,7 +8,9 @@ use crate::clouds::{
 };
 
 use crate::loading::TextureAssets;
-use crate::player::{Player, INIT_POS, TILE_SIZE};
+use crate::player::{
+    fill_player_buffer, pop_player_buffer, Player, PlayerControl, INIT_POS, TILE_SIZE,
+};
 use crate::world::{LEVEL_SIZE, STAGE_BL, STAGE_UR, STAGE_WIDTH};
 use crate::GameState;
 use bevy::prelude::*;
@@ -17,7 +19,7 @@ use colored::*;
 use iyes_loopless::prelude::*;
 use rand::seq::SliceRandom;
 
-const MAX_BUFFER_INPUT: usize = 10;
+pub const MAX_BUFFER_INPUT: usize = 10;
 const MOVE_TIMER: f32 = 0.020;
 // Multiple of the move timer:
 const SPAWN_FREQUENCY: u8 = 4;
@@ -32,8 +34,6 @@ const SEQUENCE: [CloudDir; 4] = [
     CloudDir::Down,
 ];
 pub const PUSH_COOLDOWN: f32 = 0.4;
-
-// WIP, FIXME: there is a bug where the player can push a cloud right after it moved
 
 pub struct LogicPlugin;
 
@@ -130,12 +130,12 @@ pub struct CloudControl {
     move_timer: Timer,
     sequence: [CloudDir; 4],
     spawn_counter: [u8; 4],
-    pushed_clouds: Vec<([i8; 2], CloudDir)>,
-    next_pushed_clouds: Vec<([i8; 2], CloudDir, PushState)>,
+    pub pushed_clouds: Vec<([i8; 2], CloudDir)>,
+    pub next_pushed_clouds: Vec<([i8; 2], CloudDir, PushState)>,
 }
 
 pub struct GridState {
-    grid: [[TileOccupation; LEVEL_SIZE as usize]; LEVEL_SIZE as usize],
+    pub grid: [[TileOccupation; LEVEL_SIZE as usize]; LEVEL_SIZE as usize],
     // pushed_clouds: Vec<([i8; 2], CloudDir)>,
     // next_pushed_clouds: Vec<([i8; 2], CloudDir)>,
 }
@@ -150,16 +150,6 @@ impl CloudControl {
     }
 }
 
-/// Contains the info about the player
-///
-/// The bufferis a FIFO, with the oldest element at index 0.
-#[derive(Default)]
-pub struct PlayerControl {
-    pub player_pos: [i8; 2],
-    input_buffer: [GameControl; MAX_BUFFER_INPUT],
-    timer: Timer,
-}
-
 impl Default for GridState {
     fn default() -> Self {
         let mut tmp_grid = [[TileOccupation::Empty; LEVEL_SIZE as usize]; LEVEL_SIZE as usize];
@@ -169,21 +159,6 @@ impl Default for GridState {
 }
 
 impl GridState {
-    pub fn reset_grid(&mut self) {
-        *self = GridState::default();
-    }
-
-    fn up_row(&self) -> [[i8; 2]; STAGE_WIDTH as usize] {
-        let mut res = [[0i8, 0i8]; STAGE_WIDTH as usize];
-        for (ndx, i) in (((LEVEL_SIZE - STAGE_WIDTH) / 2)
-            ..=(LEVEL_SIZE - (LEVEL_SIZE - STAGE_WIDTH) / 2) - 1)
-            .enumerate()
-        {
-            res[ndx][0] = i as i8;
-            res[ndx][1] = (LEVEL_SIZE - 1) as i8;
-        }
-        res
-    }
     fn down_row(&self) -> [[i8; 2]; STAGE_WIDTH as usize] {
         let mut res = [[0i8, 0i8]; STAGE_WIDTH as usize];
         for (ndx, i) in (((LEVEL_SIZE - STAGE_WIDTH) / 2)
@@ -195,84 +170,10 @@ impl GridState {
         }
         res
     }
-    fn left_col(&self) -> [[i8; 2]; STAGE_WIDTH as usize] {
-        let mut res = [[0i8, 0i8]; STAGE_WIDTH as usize];
-        for (ndx, i) in (((LEVEL_SIZE - STAGE_WIDTH) / 2)
-            ..=(LEVEL_SIZE - (LEVEL_SIZE - STAGE_WIDTH) / 2) - 1)
-            .enumerate()
-        {
-            res[ndx][0] = 0i8;
-            res[ndx][1] = i as i8;
-        }
-        res
-    }
-    fn right_col(&self) -> [[i8; 2]; STAGE_WIDTH as usize] {
-        let mut res = [[0i8, 0i8]; STAGE_WIDTH as usize];
-        for (ndx, i) in (((LEVEL_SIZE - STAGE_WIDTH) / 2)
-            ..=(LEVEL_SIZE - (LEVEL_SIZE - STAGE_WIDTH) / 2) - 1)
-            .enumerate()
-        {
-            res[ndx][0] = (LEVEL_SIZE - 1) as i8;
-            res[ndx][1] = i as i8;
-        }
-        res
-    }
-
-    pub fn is_sky(&self, tile: [i8; 2]) -> bool {
-        tile[0] < (STAGE_BL[0] as i8)
-            || tile[1] < (STAGE_BL[1] as i8)
-            || tile[0] > (STAGE_UR[0] as i8)
-            || tile[1] > (STAGE_UR[1] as i8)
-    }
-
-    pub fn is_out_of_range(&self, tile: [i8; 2]) -> bool {
-        0 > tile[0] || tile[0] >= LEVEL_SIZE as i8 || 0 > tile[1] || tile[1] >= LEVEL_SIZE as i8
-    }
-
-    pub fn new_cloud(&mut self, border: CloudDir) -> Option<(Vec3, [i8; 2])> {
-        let line = match border {
-            CloudDir::Down => self.up_row(),
-            CloudDir::Left => self.right_col(),
-            CloudDir::Right => self.left_col(),
-            CloudDir::Up => self.down_row(),
-        };
-
-        let non_occupied: Vec<[i8; 2]> = line
-            .into_iter()
-            .filter(|v| self.is_occupied(*v, border, dir_to_tile(border)) == PushState::Empty)
-            .collect();
-        if let Some(pos) = non_occupied.choose(&mut rand::thread_rng()) {
-            // Add the cloud to the grid
-            self.populate_tile_with_cloud(*pos, dir_to_tile(border));
-            Some((grid_to_vec(*pos), *pos))
-        } else {
-            None
-        }
-    }
-
-    /// Spawn something on the tile, it becomes occupied
-    fn populate_tile_with_cloud(&mut self, target_tile: [i8; 2], object: TileOccupation) {
-        self.grid[target_tile[0] as usize][target_tile[1] as usize] = object;
-    }
-
-    /// Remove the entity from the previous tile and bring it to the new tile
-    ///
-    /// Return: whether to despawn the cloud
-    fn move_on_grid(&mut self, source_tile: [i8; 2], target_tile: [i8; 2], object: TileOccupation) {
-        // assert!(
-        //     self.grid[target_tile[0] as usize][target_tile[1] as usize] == TileOccupation::Empty
-        // );
-        if self.is_out_of_range(target_tile) {
-            self.grid[source_tile[0] as usize][source_tile[1] as usize] = TileOccupation::Despawn;
-        } else {
-            self.grid[source_tile[0] as usize][source_tile[1] as usize] = TileOccupation::Empty;
-            self.grid[target_tile[0] as usize][target_tile[1] as usize] = object;
-        }
-    }
 
     /// Check whether the next tile is occupied. Here the function is called on
     /// the tile N+1 such that we check the tile N+2
-    fn is_occupied(&self, tile: [i8; 2], dir: CloudDir, object: TileOccupation) -> PushState {
+    pub fn is_occupied(&self, tile: [i8; 2], dir: CloudDir, object: TileOccupation) -> PushState {
         if self.is_out_of_range(tile) {
             return PushState::Despawn;
         }
@@ -382,6 +283,97 @@ impl GridState {
             }
         }
     }
+
+    pub fn is_out_of_range(&self, tile: [i8; 2]) -> bool {
+        0 > tile[0] || tile[0] >= LEVEL_SIZE as i8 || 0 > tile[1] || tile[1] >= LEVEL_SIZE as i8
+    }
+
+    pub fn is_sky(&self, tile: [i8; 2]) -> bool {
+        tile[0] < (STAGE_BL[0] as i8)
+            || tile[1] < (STAGE_BL[1] as i8)
+            || tile[0] > (STAGE_UR[0] as i8)
+            || tile[1] > (STAGE_UR[1] as i8)
+    }
+    fn left_col(&self) -> [[i8; 2]; STAGE_WIDTH as usize] {
+        let mut res = [[0i8, 0i8]; STAGE_WIDTH as usize];
+        for (ndx, i) in (((LEVEL_SIZE - STAGE_WIDTH) / 2)
+            ..=(LEVEL_SIZE - (LEVEL_SIZE - STAGE_WIDTH) / 2) - 1)
+            .enumerate()
+        {
+            res[ndx][0] = 0i8;
+            res[ndx][1] = i as i8;
+        }
+        res
+    }
+
+    /// Remove the entity from the previous tile and bring it to the new tile
+    ///
+    /// Return: whether to despawn the cloud
+    fn move_on_grid(&mut self, source_tile: [i8; 2], target_tile: [i8; 2], object: TileOccupation) {
+        // assert!(
+        //     self.grid[target_tile[0] as usize][target_tile[1] as usize] == TileOccupation::Empty
+        // );
+        if self.is_out_of_range(target_tile) {
+            self.grid[source_tile[0] as usize][source_tile[1] as usize] = TileOccupation::Despawn;
+        } else {
+            self.grid[source_tile[0] as usize][source_tile[1] as usize] = TileOccupation::Empty;
+            self.grid[target_tile[0] as usize][target_tile[1] as usize] = object;
+        }
+    }
+
+    pub fn new_cloud(&mut self, border: CloudDir) -> Option<(Vec3, [i8; 2])> {
+        let line = match border {
+            CloudDir::Down => self.up_row(),
+            CloudDir::Left => self.right_col(),
+            CloudDir::Right => self.left_col(),
+            CloudDir::Up => self.down_row(),
+        };
+
+        let non_occupied: Vec<[i8; 2]> = line
+            .into_iter()
+            .filter(|v| self.is_occupied(*v, border, dir_to_tile(border)) == PushState::Empty)
+            .collect();
+        if let Some(pos) = non_occupied.choose(&mut rand::thread_rng()) {
+            // Add the cloud to the grid
+            self.populate_tile_with_cloud(*pos, dir_to_tile(border));
+            Some((grid_to_vec(*pos), *pos))
+        } else {
+            None
+        }
+    }
+
+    /// Spawn something on the tile, it becomes occupied
+    fn populate_tile_with_cloud(&mut self, target_tile: [i8; 2], object: TileOccupation) {
+        self.grid[target_tile[0] as usize][target_tile[1] as usize] = object;
+    }
+
+    pub fn reset_grid(&mut self) {
+        *self = GridState::default();
+    }
+
+    fn right_col(&self) -> [[i8; 2]; STAGE_WIDTH as usize] {
+        let mut res = [[0i8, 0i8]; STAGE_WIDTH as usize];
+        for (ndx, i) in (((LEVEL_SIZE - STAGE_WIDTH) / 2)
+            ..=(LEVEL_SIZE - (LEVEL_SIZE - STAGE_WIDTH) / 2) - 1)
+            .enumerate()
+        {
+            res[ndx][0] = (LEVEL_SIZE - 1) as i8;
+            res[ndx][1] = i as i8;
+        }
+        res
+    }
+
+    fn up_row(&self) -> [[i8; 2]; STAGE_WIDTH as usize] {
+        let mut res = [[0i8, 0i8]; STAGE_WIDTH as usize];
+        for (ndx, i) in (((LEVEL_SIZE - STAGE_WIDTH) / 2)
+            ..=(LEVEL_SIZE - (LEVEL_SIZE - STAGE_WIDTH) / 2) - 1)
+            .enumerate()
+        {
+            res[ndx][0] = i as i8;
+            res[ndx][1] = (LEVEL_SIZE - 1) as i8;
+        }
+        res
+    }
 }
 
 /// Check whether the player cannot move at all, then it loses.
@@ -450,28 +442,6 @@ fn dir_to_tile(dir: CloudDir) -> TileOccupation {
         CloudDir::Left => TileOccupation::LeftCloud,
         CloudDir::Right => TileOccupation::RightCloud,
     }
-}
-
-/// Add all the actions (moves) to the buffer whose elements are going to be popped
-pub fn fill_player_buffer(mut actions: ResMut<Actions>, mut player_control: ResMut<PlayerControl>) {
-    let game_control = actions.next_move;
-    let idle_ndx = player_control
-        .input_buffer
-        .iter()
-        .position(|x| x == &GameControl::Idle);
-
-    if game_control != GameControl::Idle {
-        // The buffer is not full, we can replace the first idle element
-        if let Some(x) = idle_ndx {
-            player_control.input_buffer[x] = game_control;
-        }
-        // The buffer is full, replace the last element:
-        else {
-            let n = player_control.input_buffer.len() - 1;
-            player_control.input_buffer[n] = game_control;
-        }
-    };
-    actions.next_move = GameControl::Idle;
 }
 
 fn grid_to_vec(grid_pos: [i8; 2]) -> Vec3 {
@@ -737,142 +707,6 @@ fn move_clouds(
         }
     }
     cloud_control.cur_cloud_move = None;
-}
-
-/// Pop and applies all the player moves when the timer expires
-pub fn pop_player_buffer(
-    mut cloud_control: ResMut<CloudControl>,
-    mut grid_state: ResMut<GridState>,
-    mut player_control: ResMut<PlayerControl>,
-    time: Res<Time>,
-) {
-    // timers gotta be ticked, to work
-    player_control.timer.tick(time.delta());
-
-    // if it finished, despawn the bomb
-    if player_control.timer.finished() {
-        let player_action = player_control.input_buffer[0];
-        player_control.input_buffer[0] = GameControl::Idle;
-        player_control.input_buffer.rotate_left(1);
-
-        // let mut action_direction = CloudDir::Down;
-
-        let (player_new_pos, action_direction, push_state): ([i8; 2], CloudDir, PushState) =
-            match player_action {
-                GameControl::Down => {
-                    let new_pos = if player_control.player_pos[1] > (STAGE_BL[1] as i8) {
-                        [
-                            player_control.player_pos[0],
-                            player_control.player_pos[1] - 1,
-                        ]
-                    } else {
-                        player_control.player_pos
-                    };
-                    let dir = CloudDir::Down;
-                    (
-                        new_pos,
-                        dir,
-                        grid_state.is_occupied(new_pos, dir, TileOccupation::Player),
-                    )
-                }
-                GameControl::Up => {
-                    let new_pos = if player_control.player_pos[1] < (STAGE_UR[1] as i8) {
-                        [
-                            player_control.player_pos[0],
-                            player_control.player_pos[1] + 1,
-                        ]
-                    } else {
-                        player_control.player_pos
-                    };
-                    let dir = CloudDir::Up;
-                    (
-                        new_pos,
-                        dir,
-                        grid_state.is_occupied(new_pos, dir, TileOccupation::Player),
-                    )
-                }
-                GameControl::Left => {
-                    let new_pos = if player_control.player_pos[0] > (STAGE_BL[0] as i8) {
-                        [
-                            player_control.player_pos[0] - 1,
-                            player_control.player_pos[1],
-                        ]
-                    } else {
-                        player_control.player_pos
-                    };
-                    let dir = CloudDir::Left;
-                    (
-                        new_pos,
-                        dir,
-                        grid_state.is_occupied(new_pos, dir, TileOccupation::Player),
-                    )
-                }
-                GameControl::Right => {
-                    let new_pos = if player_control.player_pos[0] < (STAGE_UR[0] as i8) {
-                        [
-                            player_control.player_pos[0] + 1,
-                            player_control.player_pos[1],
-                        ]
-                    } else {
-                        player_control.player_pos
-                    };
-                    let dir = CloudDir::Right;
-                    (
-                        new_pos,
-                        dir,
-                        grid_state.is_occupied(new_pos, dir, TileOccupation::Player),
-                    )
-                }
-                GameControl::Idle => (
-                    player_control.player_pos,
-                    CloudDir::Right,
-                    PushState::Blocked,
-                ),
-            };
-        let player_old_pos = player_control.player_pos;
-
-        if player_action != GameControl::Idle {
-            match push_state {
-                PushState::Empty => {
-                    player_control.player_pos = player_new_pos;
-                    info!("pl. pos: {:?}", player_control.player_pos);
-                    grid_state.grid[player_old_pos[0] as usize][player_old_pos[1] as usize] =
-                        TileOccupation::Empty;
-                    grid_state.grid[player_new_pos[0] as usize][player_new_pos[1] as usize] =
-                        TileOccupation::Player;
-                }
-                PushState::Blocked => {}
-                PushState::CanPush => {
-                    cloud_control
-                        .pushed_clouds
-                        .push((player_old_pos, action_direction));
-                    match action_direction {
-                        CloudDir::Up => cloud_control.next_pushed_clouds.push((
-                            player_new_pos,
-                            action_direction,
-                            PushState::CanPushPlayer,
-                        )),
-                        CloudDir::Down => cloud_control.next_pushed_clouds.push((
-                            player_new_pos,
-                            action_direction,
-                            PushState::CanPushPlayer,
-                        )),
-                        CloudDir::Left => cloud_control.next_pushed_clouds.push((
-                            player_new_pos,
-                            action_direction,
-                            PushState::CanPushPlayer,
-                        )),
-                        CloudDir::Right => cloud_control.next_pushed_clouds.push((
-                            player_new_pos,
-                            action_direction,
-                            PushState::CanPushPlayer,
-                        )),
-                    };
-                }
-                _ => {}
-            }
-        }
-    };
 }
 
 /// Deal with the cloud which need to be pushed. At this stage, one already

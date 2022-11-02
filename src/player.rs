@@ -1,8 +1,10 @@
 #![cfg_attr(debug_assertions, allow(dead_code, unused_imports))]
 
 use crate::actions::{Actions, GameControl};
+use crate::clouds::CloudDir;
 use crate::loading::TextureAssets;
-use crate::logic::PlayerControl;
+use crate::logic::{CloudControl, GridState, PushState, TileOccupation, MAX_BUFFER_INPUT};
+use crate::world::{STAGE_BL, STAGE_UR};
 use crate::GameState;
 use bevy::prelude::*;
 use bevy::render::texture::ImageSettings;
@@ -13,6 +15,16 @@ pub const PLAYER_LAYER: f32 = 10.;
 pub const INIT_POS: [i8; 2] = [5i8, 5i8];
 
 pub struct PlayerPlugin;
+
+/// Contains the info about the player
+///
+/// The bufferis a FIFO, with the oldest element at index 0.
+#[derive(Default)]
+pub struct PlayerControl {
+    pub input_buffer: [GameControl; MAX_BUFFER_INPUT],
+    pub player_pos: [i8; 2],
+    pub timer: Timer,
+}
 
 #[derive(Component, Default)]
 pub struct Player {
@@ -56,6 +68,42 @@ fn animate_sprite(
     }
 }
 
+/// Add all the actions (moves) to the buffer whose elements are going to be popped
+pub fn fill_player_buffer(mut actions: ResMut<Actions>, mut player_control: ResMut<PlayerControl>) {
+    let game_control = actions.next_move;
+    let idle_ndx = player_control
+        .input_buffer
+        .iter()
+        .position(|x| x == &GameControl::Idle);
+
+    if game_control != GameControl::Idle {
+        // The buffer is not full, we can replace the first idle element
+        if let Some(x) = idle_ndx {
+            player_control.input_buffer[x] = game_control;
+        }
+        // The buffer is full, replace the last element:
+        else {
+            let n = player_control.input_buffer.len() - 1;
+            player_control.input_buffer[n] = game_control;
+        }
+    };
+    actions.next_move = GameControl::Idle;
+}
+
+pub fn move_player(
+    mut player_query: Query<&mut Transform, With<Player>>,
+    player_control: Res<PlayerControl>,
+) {
+    let pl_grid_pos = player_control.player_pos;
+    for mut transform in player_query.iter_mut() {
+        transform.translation = Vec3::new(
+            (f32::from(pl_grid_pos[0]) - INIT_POS[0] as f32) * TILE_SIZE + TILE_SIZE / 2.,
+            (f32::from(pl_grid_pos[1]) - INIT_POS[1] as f32) * TILE_SIZE + TILE_SIZE / 2.,
+            PLAYER_LAYER,
+        );
+    }
+}
+
 fn spawn_player(
     mut commands: Commands,
     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
@@ -79,22 +127,138 @@ fn spawn_player(
         .insert(AnimationTimer(Timer::from_seconds(0.1, true)));
 }
 
-// impl Player {
-//     fn set_position(&mut self, new_pos: Vec2) {
-//         self.pos = new_pos
-//     }
-// }
-
-pub fn move_player(
-    mut player_query: Query<&mut Transform, With<Player>>,
-    player_control: Res<PlayerControl>,
+/// Pop and applies all the player moves when the timer expires
+pub fn pop_player_buffer(
+    mut cloud_control: ResMut<CloudControl>,
+    mut grid_state: ResMut<GridState>,
+    mut player_control: ResMut<PlayerControl>,
+    time: Res<Time>,
 ) {
-    let pl_grid_pos = player_control.player_pos;
-    for mut transform in player_query.iter_mut() {
-        transform.translation = Vec3::new(
-            (f32::from(pl_grid_pos[0]) - INIT_POS[0] as f32) * TILE_SIZE + TILE_SIZE / 2.,
-            (f32::from(pl_grid_pos[1]) - INIT_POS[1] as f32) * TILE_SIZE + TILE_SIZE / 2.,
-            PLAYER_LAYER,
-        );
-    }
+    // timers gotta be ticked, to work
+    player_control.timer.tick(time.delta());
+
+    // if it finished, despawn the bomb
+    if player_control.timer.finished() {
+        let player_action = player_control.input_buffer[0];
+        player_control.input_buffer[0] = GameControl::Idle;
+        player_control.input_buffer.rotate_left(1);
+
+        // let mut action_direction = CloudDir::Down;
+
+        let (player_new_pos, action_direction, push_state): ([i8; 2], CloudDir, PushState) =
+            match player_action {
+                GameControl::Down => {
+                    let new_pos = if player_control.player_pos[1] > (STAGE_BL[1] as i8) {
+                        [
+                            player_control.player_pos[0],
+                            player_control.player_pos[1] - 1,
+                        ]
+                    } else {
+                        player_control.player_pos
+                    };
+                    let dir = CloudDir::Down;
+                    (
+                        new_pos,
+                        dir,
+                        grid_state.is_occupied(new_pos, dir, TileOccupation::Player),
+                    )
+                }
+                GameControl::Up => {
+                    let new_pos = if player_control.player_pos[1] < (STAGE_UR[1] as i8) {
+                        [
+                            player_control.player_pos[0],
+                            player_control.player_pos[1] + 1,
+                        ]
+                    } else {
+                        player_control.player_pos
+                    };
+                    let dir = CloudDir::Up;
+                    (
+                        new_pos,
+                        dir,
+                        grid_state.is_occupied(new_pos, dir, TileOccupation::Player),
+                    )
+                }
+                GameControl::Left => {
+                    let new_pos = if player_control.player_pos[0] > (STAGE_BL[0] as i8) {
+                        [
+                            player_control.player_pos[0] - 1,
+                            player_control.player_pos[1],
+                        ]
+                    } else {
+                        player_control.player_pos
+                    };
+                    let dir = CloudDir::Left;
+                    (
+                        new_pos,
+                        dir,
+                        grid_state.is_occupied(new_pos, dir, TileOccupation::Player),
+                    )
+                }
+                GameControl::Right => {
+                    let new_pos = if player_control.player_pos[0] < (STAGE_UR[0] as i8) {
+                        [
+                            player_control.player_pos[0] + 1,
+                            player_control.player_pos[1],
+                        ]
+                    } else {
+                        player_control.player_pos
+                    };
+                    let dir = CloudDir::Right;
+                    (
+                        new_pos,
+                        dir,
+                        grid_state.is_occupied(new_pos, dir, TileOccupation::Player),
+                    )
+                }
+                GameControl::Idle => (
+                    player_control.player_pos,
+                    CloudDir::Right,
+                    PushState::Blocked,
+                ),
+            };
+        let player_old_pos = player_control.player_pos;
+
+        if player_action != GameControl::Idle {
+            match push_state {
+                PushState::Empty => {
+                    player_control.player_pos = player_new_pos;
+                    info!("pl. pos: {:?}", player_control.player_pos);
+                    grid_state.grid[player_old_pos[0] as usize][player_old_pos[1] as usize] =
+                        TileOccupation::Empty;
+                    grid_state.grid[player_new_pos[0] as usize][player_new_pos[1] as usize] =
+                        TileOccupation::Player;
+                }
+                PushState::Blocked => {}
+                PushState::CanPush => {
+                    cloud_control
+                        .pushed_clouds
+                        .push((player_old_pos, action_direction));
+                    match action_direction {
+                        CloudDir::Up => cloud_control.next_pushed_clouds.push((
+                            player_new_pos,
+                            action_direction,
+                            PushState::CanPushPlayer,
+                        )),
+                        CloudDir::Down => cloud_control.next_pushed_clouds.push((
+                            player_new_pos,
+                            action_direction,
+                            PushState::CanPushPlayer,
+                        )),
+                        CloudDir::Left => cloud_control.next_pushed_clouds.push((
+                            player_new_pos,
+                            action_direction,
+                            PushState::CanPushPlayer,
+                        )),
+                        CloudDir::Right => cloud_control.next_pushed_clouds.push((
+                            player_new_pos,
+                            action_direction,
+                            PushState::CanPushPlayer,
+                        )),
+                    };
+                }
+                _ => {}
+            }
+        }
+    };
 }

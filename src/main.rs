@@ -12,7 +12,6 @@ use std::io::Cursor;
 use winit::window::Icon;
 
 // TODO: simplify the structure: do like the game menu example in bevy main
-// TODO: add lose condition -> add state for that
 // TODO: add tweaning
 // TODO: add music
 
