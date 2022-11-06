@@ -2,6 +2,7 @@
 
 use crate::logic::GridState;
 use crate::player::Player;
+use crate::ui::LoadBar;
 use crate::GameState;
 use crate::{clouds::Cloud, loading::FontAssets};
 use bevy::prelude::*;
@@ -234,7 +235,16 @@ fn game_over_screen(
 #[allow(clippy::type_complexity)]
 fn game_over_clear(
     mut commands: Commands,
-    mut query: Query<Entity, Or<(With<Cloud>, With<Player>, With<Sky>, With<Platform>)>>,
+    mut query: Query<
+        Entity,
+        Or<(
+            With<Cloud>,
+            With<Player>,
+            With<Sky>,
+            With<Platform>,
+            With<LoadBar>,
+        )>,
+    >,
 ) {
     for entity in query.iter_mut() {
         commands.entity(entity).despawn();

@@ -97,7 +97,8 @@ pub fn move_player(
     let pl_grid_pos = player_control.player_pos;
     for mut transform in player_query.iter_mut() {
         transform.translation = Vec3::new(
-            (f32::from(pl_grid_pos[0]) - INIT_POS[0] as f32) * TILE_SIZE + TILE_SIZE / 2.,
+            (f32::from(pl_grid_pos[0]) - INIT_POS[0] as f32) * TILE_SIZE + TILE_SIZE / 2.
+                - TILE_SIZE / 2.,
             (f32::from(pl_grid_pos[1]) - INIT_POS[1] as f32) * TILE_SIZE + TILE_SIZE / 2.,
             PLAYER_LAYER,
         );

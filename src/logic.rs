@@ -444,9 +444,19 @@ fn dir_to_tile(dir: CloudDir) -> TileOccupation {
     }
 }
 
+///Method to compute the cloud positions.
+///
+/// There are a couple of value inside the formula:
+/// - the position of the cloud on the grid, starting at (0, 0) at the bottom
+///   left
+/// - the offset to express the coordinates in relative to the center
+/// - a 0.5 offset to have the arrows centered on the tiles
+/// - a -0.5 offset in the X direction because of the positioning of the load
+///   bar
 fn grid_to_vec(grid_pos: [i8; 2]) -> Vec3 {
     Vec3::new(
-        (grid_pos[0]) as f32 * TILE_SIZE - (LEVEL_SIZE as f32) / 2. * TILE_SIZE + 0.5 * TILE_SIZE,
+        (grid_pos[0]) as f32 * TILE_SIZE - (LEVEL_SIZE as f32) / 2. * TILE_SIZE + 0.5 * TILE_SIZE
+            - 0.5 * TILE_SIZE,
         (grid_pos[1]) as f32 * TILE_SIZE - (LEVEL_SIZE as f32) / 2. * TILE_SIZE + 0.5 * TILE_SIZE,
         CLOUD_LAYER,
     )

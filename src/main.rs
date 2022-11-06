@@ -11,17 +11,19 @@ use cloud_sweeper::GamePlugin;
 use std::io::Cursor;
 use winit::window::Icon;
 
-// TODO: simplify the structure: do like the game menu example in bevy main
+// TODO: add bar with number of clouds -> loose when full
 // TODO: add tweaning
 // TODO: add music
+pub const TILE_SIZE: f32 = 16.;
+pub const DISPLAY_RATIO: f32 = 1. / 4.;
 
 fn main() {
     App::new()
         .insert_resource(Msaa { samples: 1 })
-        .insert_resource(ClearColor(Color::rgb(0.4, 0.4, 0.4)))
+        .insert_resource(ClearColor(Color::rgb(0., 0., 0.)))
         .insert_resource(WindowDescriptor {
-            width: 640.,
-            height: 640.,
+            width: 10.5 * TILE_SIZE / DISPLAY_RATIO,
+            height: 10. * TILE_SIZE / DISPLAY_RATIO,
             title: "Cloud Sweeper".to_string(), // ToDo
             canvas: Some("#bevy".to_owned()),
             ..Default::default()

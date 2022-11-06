@@ -7,6 +7,7 @@ mod loading;
 mod logic;
 mod menu;
 mod player;
+mod ui;
 mod world;
 
 use crate::actions::ActionsPlugin;
@@ -16,6 +17,7 @@ use crate::loading::LoadingPlugin;
 use crate::logic::LogicPlugin;
 use crate::menu::MenuPlugin;
 use crate::player::PlayerPlugin;
+use crate::ui::UiPlugin;
 use crate::world::WorldPlugin;
 
 use bevy::app::App;
@@ -51,6 +53,7 @@ impl Plugin for GamePlugin {
             // .add_plugin(InternalAudioPlugin)
             .add_plugin(WorldPlugin)
             .add_plugin(PlayerPlugin)
+            .add_plugin(UiPlugin)
             .add_plugin(LogicPlugin);
         #[cfg(debug_assertions)]
         {

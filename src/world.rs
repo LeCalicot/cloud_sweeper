@@ -6,6 +6,7 @@ use bevy::{prelude::*, render::texture::ImageSettings};
 use bevy_ecs_tilemap::helpers::get_centered_transform_2d;
 use bevy_ecs_tilemap::prelude::*;
 use bevy_prototype_debug_lines::DebugLines;
+use colored::*;
 use iyes_loopless::prelude::*;
 
 pub struct WorldPlugin;
@@ -104,7 +105,8 @@ fn setup_world(mut commands: Commands, asset_server: Res<AssetServer>) {
             storage: tile_storage,
             texture: TilemapTexture(texture_handle),
             tile_size,
-            transform: get_centered_transform_2d(&tilemap_size, &tile_size, 0.0),
+            transform: get_centered_transform_2d(&tilemap_size, &tile_size, 0.)
+                * Transform::from_xyz(-TILE_SIZE / 2., 0.0, 0.0),
             ..Default::default()
         });
 }
