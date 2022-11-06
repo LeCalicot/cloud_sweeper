@@ -2,7 +2,7 @@
 
 use crate::logic::GridState;
 use crate::player::Player;
-use crate::ui::LoadBar;
+use crate::ui::MessBar;
 use crate::GameState;
 use crate::{clouds::Cloud, loading::FontAssets};
 use bevy::prelude::*;
@@ -242,7 +242,7 @@ fn game_over_clear(
             With<Player>,
             With<Sky>,
             With<Platform>,
-            With<LoadBar>,
+            With<MessBar>,
         )>,
     >,
 ) {
