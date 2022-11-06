@@ -91,6 +91,7 @@ impl Plugin for LogicPlugin {
                     // .after("move_clouds")
                     .with_system(update_cloud_pos)
                     .with_system(despawn_clouds)
+                    .with_system(count_clouds)
                     .into(),
             );
     }
@@ -136,6 +137,7 @@ pub struct CloudControl {
 
 pub struct GridState {
     pub grid: [[TileOccupation; LEVEL_SIZE as usize]; LEVEL_SIZE as usize],
+    pub cloud_count: u8,
     // pushed_clouds: Vec<([i8; 2], CloudDir)>,
     // next_pushed_clouds: Vec<([i8; 2], CloudDir)>,
 }
@@ -154,7 +156,10 @@ impl Default for GridState {
     fn default() -> Self {
         let mut tmp_grid = [[TileOccupation::Empty; LEVEL_SIZE as usize]; LEVEL_SIZE as usize];
         tmp_grid[INIT_POS[0] as usize][INIT_POS[1] as usize] = TileOccupation::Player;
-        GridState { grid: tmp_grid }
+        GridState {
+            grid: tmp_grid,
+            cloud_count: 0,
+        }
     }
 }
 
@@ -411,6 +416,26 @@ fn check_lose_condition(
         if has_lost {
             commands.insert_resource(NextState(GameState::GameOver))
         }
+    }
+}
+
+fn count_clouds(mut grid_state: ResMut<GridState>) {
+    let cloud_types = [
+        TileOccupation::DownCloud,
+        TileOccupation::UpCloud,
+        TileOccupation::RightCloud,
+        TileOccupation::DownCloud,
+    ];
+    let mut tmp_counter: u8 = 0;
+    for i in 0..grid_state.grid.len() {
+        for j in 0..grid_state.grid[i].len() {
+            let is_stage = !grid_state.is_sky([i as i8, j as i8]);
+            let is_cloud = cloud_types.contains(&grid_state.grid[i][j]);
+            if is_stage && is_cloud {
+                tmp_counter += 1;
+            }
+        }
+        grid_state.cloud_count = tmp_counter;
     }
 }
 
