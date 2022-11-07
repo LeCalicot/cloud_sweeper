@@ -35,6 +35,7 @@ const SEQUENCE: [CloudDir; 4] = [
     CloudDir::Down,
 ];
 pub const PUSH_COOLDOWN: f32 = 0.4;
+pub const CLOUD_COUNT_LOSE_COND: usize = 10;
 
 pub struct LogicPlugin;
 

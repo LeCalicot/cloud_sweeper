@@ -4,7 +4,12 @@ use bevy_ecs_tilemap::tiles::TileStorage;
 use colored::*;
 use iyes_loopless::prelude::*;
 
-use crate::{logic::GridState, player::TILE_SIZE, world::LEVEL_SIZE, GameState};
+use crate::{
+    logic::{GridState, CLOUD_COUNT_LOSE_COND},
+    player::TILE_SIZE,
+    world::LEVEL_SIZE,
+    GameState,
+};
 
 pub struct UiPlugin;
 
@@ -90,20 +95,24 @@ pub fn get_mess_tile_pos(ndx: u32, z: f32) -> Transform {
 
 // WIP: add a MessTile component to query the tile. Currently the query is wrong
 fn update_mess_bar(
+    mut commands: Commands,
     mess_query: Query<&mut MessBar>,
     mut tile_query: Query<(&TilePos, &mut TileVisible), With<MessTile>>,
 ) {
     // The counter is duplicated...
     let mess_counter = mess_query.into_iter().collect::<Vec<&MessBar>>()[0].counter;
-    println!("{} {} {:?}", { "➤".blue() }, { "AAA:".blue() }, {
-        mess_counter
-    });
+
+    let threshold: f32 = mess_counter as f32 * LEVEL_SIZE as f32 / CLOUD_COUNT_LOSE_COND as f32;
 
     for (pos, mut vis) in tile_query.iter_mut() {
-        if pos.y <= mess_counter as u32 {
+        if pos.y <= threshold as u32 {
             vis.0 = true;
         } else {
             vis.0 = false;
         }
+    }
+
+    if mess_counter > CLOUD_COUNT_LOSE_COND {
+        commands.insert_resource(NextState(GameState::GameOver))
     }
 }
