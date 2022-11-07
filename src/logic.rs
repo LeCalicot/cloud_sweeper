@@ -11,6 +11,7 @@ use crate::loading::TextureAssets;
 use crate::player::{
     fill_player_buffer, pop_player_buffer, Player, PlayerControl, INIT_POS, TILE_SIZE,
 };
+use crate::ui::MessBar;
 use crate::world::{LEVEL_SIZE, STAGE_BL, STAGE_UR, STAGE_WIDTH};
 use crate::GameState;
 use bevy::prelude::*;
@@ -419,14 +420,14 @@ fn check_lose_condition(
     }
 }
 
-fn count_clouds(mut grid_state: ResMut<GridState>) {
+fn count_clouds(grid_state: Res<GridState>, mut query: Query<&mut MessBar>) {
     let cloud_types = [
         TileOccupation::DownCloud,
         TileOccupation::UpCloud,
         TileOccupation::RightCloud,
         TileOccupation::DownCloud,
     ];
-    let mut tmp_counter: u8 = 0;
+    let mut tmp_counter: usize = 0;
     for i in 0..grid_state.grid.len() {
         for j in 0..grid_state.grid[i].len() {
             let is_stage = !grid_state.is_sky([i as i8, j as i8]);
@@ -435,7 +436,11 @@ fn count_clouds(mut grid_state: ResMut<GridState>) {
                 tmp_counter += 1;
             }
         }
-        grid_state.cloud_count = tmp_counter;
+
+        // OPTI: do not duplicate the data:
+        for mut mess_bar in query.iter_mut() {
+            mess_bar.counter = tmp_counter;
+        }
     }
 }
 

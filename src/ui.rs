@@ -1,16 +1,20 @@
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
 use bevy_ecs_tilemap::tiles::TileStorage;
+use colored::*;
 use iyes_loopless::prelude::*;
 
-use crate::{player::TILE_SIZE, world::LEVEL_SIZE, GameState};
+use crate::{logic::GridState, player::TILE_SIZE, world::LEVEL_SIZE, GameState};
 
 pub struct UiPlugin;
 
 #[derive(Component, Default)]
 pub struct MessBar {
-    counter: usize,
+    pub counter: usize,
 }
+
+#[derive(Component)]
+pub struct MessTile;
 
 /// This plugin handles the UI interface
 impl Plugin for UiPlugin {
@@ -57,7 +61,7 @@ fn setup_mess_bar(mut commands: Commands, asset_server: Res<AssetServer>) {
                 ..Default::default()
             })
             .id();
-        commands.entity(tile_entity).insert(MessBar::default());
+        commands.entity(tile_entity).insert(MessTile);
         tile_storage.set(&tile_pos, Some(tile_entity));
     }
 
@@ -71,7 +75,8 @@ fn setup_mess_bar(mut commands: Commands, asset_server: Res<AssetServer>) {
             tile_size,
             transform: get_mess_tile_pos(0, 100.),
             ..Default::default()
-        });
+        })
+        .insert(MessBar::default());
 }
 
 /// Method to compute the positions of the blocks of the load bar
@@ -83,4 +88,22 @@ pub fn get_mess_tile_pos(ndx: u32, z: f32) -> Transform {
     )
 }
 
-fn update_mess_bar() {}
+// WIP: add a MessTile component to query the tile. Currently the query is wrong
+fn update_mess_bar(
+    mess_query: Query<&mut MessBar>,
+    mut tile_query: Query<(&TilePos, &mut TileVisible), With<MessTile>>,
+) {
+    // The counter is duplicated...
+    let mess_counter = mess_query.into_iter().collect::<Vec<&MessBar>>()[0].counter;
+    println!("{} {} {:?}", { "➤".blue() }, { "AAA:".blue() }, {
+        mess_counter
+    });
+
+    for (pos, mut vis) in tile_query.iter_mut() {
+        if pos.y <= mess_counter as u32 {
+            vis.0 = true;
+        } else {
+            vis.0 = false;
+        }
+    }
+}
