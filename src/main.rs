@@ -13,6 +13,7 @@ use winit::window::Icon;
 
 // TODO: use keep pressing → + space to turn all adjacent clouds inward to unlock some situations. Must be aligned with the beat
 // TODO: add item spawing to accelerate the speed, add clouds, destroy clouds, revert everything
+// TODO: add music
 // TODO: make the menu actuallly quit
 // TODO: add tweaning
 // TODO: no dead time for player actions

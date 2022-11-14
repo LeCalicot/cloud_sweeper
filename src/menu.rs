@@ -44,9 +44,10 @@ impl Plugin for MenuPlugin {
     }
 }
 
+#[derive(Resource)]
 struct ButtonColors {
-    normal: UiColor,
-    hovered: UiColor,
+    normal: BackgroundColor,
+    hovered: BackgroundColor,
 }
 
 #[derive(Component)]
@@ -115,7 +116,7 @@ fn setup_menu(
 fn click_play_button(
     button_colors: Res<ButtonColors>,
     mut interaction_query: Query<
-        (&Interaction, &mut UiColor),
+        (&Interaction, &mut BackgroundColor),
         (Changed<Interaction>, With<MainMenu>),
     >,
     mut commands: Commands,
@@ -213,7 +214,7 @@ fn setup_game_over_screen(
 #[allow(clippy::type_complexity)]
 fn game_over_screen(
     mut interaction_query: Query<
-        (&Interaction, &mut UiColor),
+        (&Interaction, &mut BackgroundColor),
         (Changed<Interaction>, With<Button>, With<GameOver>),
     >,
     mut commands: Commands,

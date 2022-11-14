@@ -125,7 +125,7 @@ pub enum TileOccupation {
 #[derive(Component, Deref, DerefMut)]
 struct AnimationTimer(Timer);
 
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct CloudControl {
     pub cur_new_cloud: Option<CloudDir>,
     pub cur_cloud_move: Option<CloudDir>,
@@ -137,6 +137,7 @@ pub struct CloudControl {
     pub next_pushed_clouds: Vec<([i8; 2], CloudDir, PushState)>,
 }
 
+#[derive(Resource)]
 pub struct GridState {
     pub grid: [[TileOccupation; LEVEL_SIZE as usize]; LEVEL_SIZE as usize],
     pub cloud_count: u8,
