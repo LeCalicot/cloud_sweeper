@@ -5,3 +5,5 @@ target/
 dist/
 
 .vscode/
+
+.xwin-cache/dl/

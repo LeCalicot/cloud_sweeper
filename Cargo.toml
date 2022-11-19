@@ -4,7 +4,7 @@ version = "0.1.0"
 publish = false
 authors = ["Luc Couturier <luccouturier@mailfence.com>"]
 edition = "2021"
-exclude = ["dist", "build", "assets", "credits"]
+exclude = ["dist", "build", "credits", "assets"]
 
 [profile.dev.package."*"]
 opt-level = 3
@@ -37,3 +37,14 @@ colored = "2.0.0"
 
 [build-dependencies]
 embed-resource = "1.4"
+
+[target.x86_64-pc-windows-msvc]
+linker = "lld"
+rustflags = [
+  "-Lnative=/opt/xwin/crt/lib/x86_64",
+  "-Lnative=/opt/xwin/sdk/lib/um/x86_64",
+  "-Lnative=/opt/xwin/sdk/lib/ucrt/x86_64"
+]
+
+[env]
+CARGO_MANIFEST_DIR="/home/luc/Dev/bevy_perso/cloud_sweeper"
