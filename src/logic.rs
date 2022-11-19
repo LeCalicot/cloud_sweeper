@@ -26,8 +26,8 @@ const MOVE_TIMER: f32 = 0.020;
 const SPAWN_FREQUENCY: u8 = 4;
 // Offset for delaying cloud spawning depending on the direction:
 const SPAWN_OFFSET: [u8; 4] = [0, 1, 0, 1];
-const CLOUD_TIMER: f32 = 0.1;
-// const CLOUD_TIMER: f32 = 0.4;
+// const CLOUD_TIMER: f32 = 0.1;
+const CLOUD_TIMER: f32 = 0.4;
 const SEQUENCE: [CloudDir; 4] = [
     CloudDir::Left,
     CloudDir::Up,

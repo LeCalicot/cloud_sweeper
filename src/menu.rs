@@ -29,7 +29,7 @@ impl Plugin for MenuPlugin {
                     .run_in_state(GameState::Menu)
                     .with_system(click_play_button)
                     .with_system(close_on_esc)
-                    .with_system(debug_start_auto)
+                    // .with_system(debug_start_auto)
                     .into(),
             )
             .add_enter_system(GameState::GameOver, setup_game_over_screen)
