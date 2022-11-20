@@ -15,7 +15,8 @@ use winit::window::Icon;
 // TODO: add item spawing to accelerate the speed, add clouds, destroy clouds, revert everything
 // TODO: make the menu actuallly quit
 // TODO: add tweaning
-// TODO: add music
+// TODO: no dead time for player actions
+// TODO: sync music with cloud spawning
 
 pub const TILE_SIZE: f32 = 16.;
 pub const DISPLAY_RATIO: f32 = 1. / 4.;

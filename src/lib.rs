@@ -50,7 +50,7 @@ impl Plugin for GamePlugin {
             .add_plugin(LoadingPlugin)
             .add_plugin(MenuPlugin)
             .add_plugin(ActionsPlugin)
-            // .add_plugin(InternalAudioPlugin)
+            .add_plugin(InternalAudioPlugin)
             .add_plugin(WorldPlugin)
             .add_plugin(PlayerPlugin)
             .add_plugin(UiPlugin)

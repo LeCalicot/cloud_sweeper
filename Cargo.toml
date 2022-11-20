@@ -23,7 +23,7 @@ dev = [
 
 [dependencies]
 bevy = { version = "0.8", default-features = false, features = ["bevy_asset", "bevy_winit", "render", "png", "x11"] }
-bevy_kira_audio = { version = "0.12" }
+bevy_kira_audio = { version = "0.12", features=["wav"] }
 bevy_asset_loader = { version = "0.12", features = ["stageless"] }
 rand = { version = "0.8.3" }
 
@@ -38,13 +38,13 @@ colored = "2.0.0"
 [build-dependencies]
 embed-resource = "1.4"
 
-[target.x86_64-pc-windows-msvc]
-linker = "lld"
-rustflags = [
-  "-Lnative=/opt/xwin/crt/lib/x86_64",
-  "-Lnative=/opt/xwin/sdk/lib/um/x86_64",
-  "-Lnative=/opt/xwin/sdk/lib/ucrt/x86_64"
-]
+# [target.x86_64-pc-windows-msvc]
+# linker = "lld"
+# rustflags = [
+#   "-Lnative=/opt/xwin/crt/lib/x86_64",
+#   "-Lnative=/opt/xwin/sdk/lib/um/x86_64",
+#   "-Lnative=/opt/xwin/sdk/lib/ucrt/x86_64"
+# ]
 
-[env]
-CARGO_MANIFEST_DIR="/home/luc/Dev/bevy_perso/cloud_sweeper"
+# [env]
+# CARGO_MANIFEST_DIR="/home/luc/Dev/bevy_perso/cloud_sweeper"
