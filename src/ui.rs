@@ -93,7 +93,6 @@ pub fn get_mess_tile_pos(ndx: u32, z: f32) -> Transform {
     )
 }
 
-// WIP: add a MessTile component to query the tile. Currently the query is wrong
 fn update_mess_bar(
     mut commands: Commands,
     mess_query: Query<&mut MessBar>,

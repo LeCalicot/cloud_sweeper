@@ -250,8 +250,6 @@ fn game_over_clear(
     for entity in query.iter_mut() {
         commands.entity(entity).despawn();
     }
-
-    // WIP: remove camera, remove buttons
 }
 
 fn exit_game_over_menu(
