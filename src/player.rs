@@ -7,7 +7,7 @@ use crate::logic::{CloudControl, GridState, PushState, TileOccupation, MAX_BUFFE
 use crate::world::{STAGE_BL, STAGE_UR};
 use crate::GameState;
 use bevy::prelude::*;
-use bevy::render::texture::ImageSettings;
+// use bevy::render::texture::ImageSettings;
 use iyes_loopless::prelude::*;
 
 pub const TILE_SIZE: f32 = 16.;

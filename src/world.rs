@@ -2,8 +2,9 @@
 // use crate::loading::TextureAssets;
 use crate::player::TILE_SIZE;
 use crate::GameState;
-use bevy::{prelude::*, render::texture::ImageSettings};
-use bevy_ecs_tilemap::helpers::get_centered_transform_2d;
+use bevy::prelude::*;
+use bevy_ecs_tilemap::helpers::geometry::get_tilemap_center_transform;
+use bevy_ecs_tilemap::map::TilemapTexture;
 use bevy_ecs_tilemap::prelude::*;
 use bevy_prototype_debug_lines::DebugLines;
 use colored::*;
@@ -42,7 +43,7 @@ impl Plugin for WorldPlugin {
                     // .with_system(draw_grid)
                     .into(),
             )
-            .insert_resource(ImageSettings::default_nearest())
+            // .insert_resource(ImageSettings::default_nearest())
             .add_plugin(TilemapPlugin);
     }
 }
@@ -67,7 +68,7 @@ fn setup_world(mut commands: Commands, asset_server: Res<AssetServer>) {
                 .spawn()
                 .insert_bundle(TileBundle {
                     position: tile_pos,
-                    texture: TileTexture(1),
+                    texture: TileTextureIndex(1),
                     tilemap_id: TilemapId(tilemap_entity),
                     ..Default::default()
                 })
@@ -77,12 +78,12 @@ fn setup_world(mut commands: Commands, asset_server: Res<AssetServer>) {
                 commands
                     .entity(tile_entity)
                     .insert(Platform)
-                    .insert(TileTexture(0));
+                    .insert(TileTextureIndex(0));
             } else {
                 commands
                     .entity(tile_entity)
                     .insert(Sky)
-                    .insert(TileTexture(1));
+                    .insert(TileTextureIndex(1));
             }
             tile_storage.set(&tile_pos, Some(tile_entity));
         }
@@ -103,9 +104,9 @@ fn setup_world(mut commands: Commands, asset_server: Res<AssetServer>) {
             grid_size,
             size: tilemap_size,
             storage: tile_storage,
-            texture: TilemapTexture(texture_handle),
+            texture: TilemapTexture::Single(texture_handle),
             tile_size,
-            transform: get_centered_transform_2d(&tilemap_size, &tile_size, 0.)
+            transform: get_tilemap_center_transform(&tilemap_size, &tile_size, 0.)
                 * Transform::from_xyz(-TILE_SIZE / 2., 0.0, 0.0),
             ..Default::default()
         });

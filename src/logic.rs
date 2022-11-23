@@ -15,7 +15,7 @@ use crate::ui::MessBar;
 use crate::world::{LEVEL_SIZE, STAGE_BL, STAGE_UR, STAGE_WIDTH};
 use crate::GameState;
 use bevy::prelude::*;
-use bevy::render::texture::ImageSettings;
+// use bevy::render::texture::ImageSettings;
 use colored::*;
 use iyes_loopless::prelude::*;
 use rand::seq::SliceRandom;

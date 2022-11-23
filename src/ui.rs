@@ -51,17 +51,17 @@ fn setup_mess_bar(mut commands: Commands, asset_server: Res<AssetServer>) {
         y: TILE_SIZE,
     };
 
-    let tilemap_entity = commands.spawn().id();
+    let tilemap_entity = commands.spawn_empty().id();
     let mut tile_storage = TileStorage::empty(tilemap_size);
 
     for y in 0..tilemap_size.y {
         let tile_pos = TilePos { x: 0, y };
 
         let tile_entity = commands
-            .spawn()
+            .spawn_empty()
             .insert_bundle(TileBundle {
                 position: tile_pos,
-                texture: TileTexture(1 + y / 2),
+                texture_index: TileTextureIndex(1 + y / 2),
                 tilemap_id: TilemapId(tilemap_entity),
                 ..Default::default()
             })
@@ -76,7 +76,7 @@ fn setup_mess_bar(mut commands: Commands, asset_server: Res<AssetServer>) {
             grid_size,
             size: tilemap_size,
             storage: tile_storage,
-            texture: TilemapTexture(texture_handle),
+            texture: TilemapTexture::Single(texture_handle),
             tile_size,
             transform: get_mess_tile_pos(0, 100.),
             ..Default::default()

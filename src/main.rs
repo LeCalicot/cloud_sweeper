@@ -2,8 +2,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![cfg_attr(debug_assertions, allow(dead_code, unused_imports))]
 
-use bevy::prelude::{App, ClearColor, Color, Msaa, NonSend, WindowDescriptor};
-use bevy::render::texture::ImageSettings;
+use bevy::prelude::{App, ClearColor, Color, ImagePlugin, Msaa, NonSend, WindowDescriptor};
+// use bevy::render::texture::ImageSettings;
 use bevy::window::WindowId;
 use bevy::winit::WinitWindows;
 use bevy::DefaultPlugins;
@@ -33,8 +33,8 @@ fn main() {
             canvas: Some("#bevy".to_owned()),
             ..Default::default()
         })
-        .insert_resource(ImageSettings::default_nearest())
-        .add_plugins(DefaultPlugins)
+        // .insert_resource(ImageSettings::default_nearest())
+        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
         .add_plugin(GamePlugin)
         .add_startup_system(set_window_icon)
         .run();

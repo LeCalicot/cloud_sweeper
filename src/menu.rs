@@ -90,7 +90,7 @@ fn setup_menu(
                 align_items: AlignItems::Center,
                 ..Default::default()
             },
-            color: button_colors.normal,
+            // color: button_colors.normal,
             ..Default::default()
         })
         .insert(MainMenu)
@@ -159,7 +159,7 @@ fn setup_game_over_screen(
                 align_items: AlignItems::Center,
                 ..Default::default()
             },
-            color: button_colors.normal,
+            // color: button_colors.normal,/
             ..Default::default()
         })
         .with_children(|parent| {
@@ -189,7 +189,7 @@ fn setup_game_over_screen(
                 align_items: AlignItems::Center,
                 ..Default::default()
             },
-            color: button_colors.normal,
+            // color: button_colors.normal,
             ..Default::default()
         })
         .with_children(|parent| {
