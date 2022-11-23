@@ -2,9 +2,12 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![cfg_attr(debug_assertions, allow(dead_code, unused_imports))]
 
-use bevy::prelude::{App, ClearColor, Color, ImagePlugin, Msaa, NonSend, WindowDescriptor};
+use bevy::prelude::*;
+// use bevy::prelude::{
+//     App, ClearColor, Color, ImagePlugin, Msaa, NonSend, PluginGroup, WindowDescriptor,
+// };
 // use bevy::render::texture::ImageSettings;
-use bevy::window::WindowId;
+use bevy::window::{WindowId, WindowPlugin};
 use bevy::winit::WinitWindows;
 use bevy::DefaultPlugins;
 use cloud_sweeper::GamePlugin;
@@ -26,15 +29,20 @@ fn main() {
     App::new()
         .insert_resource(Msaa { samples: 1 })
         .insert_resource(ClearColor(Color::rgb(0., 0., 0.)))
-        .insert_resource(WindowDescriptor {
-            width: 10.5 * TILE_SIZE / DISPLAY_RATIO,
-            height: 10. * TILE_SIZE / DISPLAY_RATIO,
-            title: "Cloud Sweeper".to_string(), // ToDo
-            canvas: Some("#bevy".to_owned()),
-            ..Default::default()
-        })
-        // .insert_resource(ImageSettings::default_nearest())
-        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
+        .add_plugins(
+            DefaultPlugins
+                .set(ImagePlugin::default_nearest())
+                .set(WindowPlugin {
+                    window: WindowDescriptor {
+                        width: 10.5 * TILE_SIZE / DISPLAY_RATIO,
+                        height: 10. * TILE_SIZE / DISPLAY_RATIO,
+                        title: "Cloud Sweeper".to_string(), // ToDo
+                        canvas: Some("#bevy".to_owned()),
+                        ..default()
+                    },
+                    ..default()
+                }),
+        )
         .add_plugin(GamePlugin)
         .add_startup_system(set_window_icon)
         .run();

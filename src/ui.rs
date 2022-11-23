@@ -59,7 +59,7 @@ fn setup_mess_bar(mut commands: Commands, asset_server: Res<AssetServer>) {
 
         let tile_entity = commands
             .spawn_empty()
-            .insert_bundle(TileBundle {
+            .insert(TileBundle {
                 position: tile_pos,
                 texture_index: TileTextureIndex(1 + y / 2),
                 tilemap_id: TilemapId(tilemap_entity),
@@ -67,12 +67,12 @@ fn setup_mess_bar(mut commands: Commands, asset_server: Res<AssetServer>) {
             })
             .id();
         commands.entity(tile_entity).insert(MessTile);
-        tile_storage.set(&tile_pos, Some(tile_entity));
+        tile_storage.set(&tile_pos, tile_entity);
     }
 
     commands
         .entity(tilemap_entity)
-        .insert_bundle(TilemapBundle {
+        .insert(TilemapBundle {
             grid_size,
             size: tilemap_size,
             storage: tile_storage,

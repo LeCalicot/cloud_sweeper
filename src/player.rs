@@ -121,7 +121,7 @@ fn spawn_player(
     );
     let texture_atlas_handle = texture_atlases.add(texture_atlas);
     commands
-        .spawn_bundle(SpriteSheetBundle {
+        .spawn(SpriteSheetBundle {
             texture_atlas: texture_atlas_handle,
             transform: Transform::from_xyz(
                 TILE_SIZE * (0.5 + (INIT_POS[0] as f32)),
@@ -131,7 +131,10 @@ fn spawn_player(
             ..default()
         })
         .insert(Player::default())
-        .insert(AnimationTimer(Timer::from_seconds(0.1, true)));
+        .insert(AnimationTimer(Timer::from_seconds(
+            0.1,
+            TimerMode::Repeating,
+        )));
 }
 
 /// Pop and applies all the player moves when the timer expires

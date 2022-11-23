@@ -57,7 +57,7 @@ fn setup_world(mut commands: Commands, asset_server: Res<AssetServer>) {
         x: LEVEL_SIZE,
         y: LEVEL_SIZE,
     };
-    let tilemap_entity = commands.spawn().id();
+    let tilemap_entity = commands.spawn_empty().id();
     let mut tile_storage = TileStorage::empty(tilemap_size);
 
     for x in 0..tilemap_size.x {
@@ -65,10 +65,9 @@ fn setup_world(mut commands: Commands, asset_server: Res<AssetServer>) {
             let tile_pos = TilePos { x, y };
 
             let tile_entity = commands
-                .spawn()
-                .insert_bundle(TileBundle {
+                .spawn(TileBundle {
                     position: tile_pos,
-                    texture: TileTextureIndex(1),
+                    texture_index: TileTextureIndex(1),
                     tilemap_id: TilemapId(tilemap_entity),
                     ..Default::default()
                 })
@@ -85,7 +84,7 @@ fn setup_world(mut commands: Commands, asset_server: Res<AssetServer>) {
                     .insert(Sky)
                     .insert(TileTextureIndex(1));
             }
-            tile_storage.set(&tile_pos, Some(tile_entity));
+            tile_storage.set(&tile_pos, tile_entity);
         }
     }
 
@@ -98,18 +97,20 @@ fn setup_world(mut commands: Commands, asset_server: Res<AssetServer>) {
         y: TILE_SIZE,
     };
 
-    commands
-        .entity(tilemap_entity)
-        .insert_bundle(TilemapBundle {
-            grid_size,
-            size: tilemap_size,
-            storage: tile_storage,
-            texture: TilemapTexture::Single(texture_handle),
-            tile_size,
-            transform: get_tilemap_center_transform(&tilemap_size, &tile_size, 0.)
-                * Transform::from_xyz(-TILE_SIZE / 2., 0.0, 0.0),
-            ..Default::default()
-        });
+    commands.entity(tilemap_entity).insert(TilemapBundle {
+        grid_size,
+        size: tilemap_size,
+        storage: tile_storage,
+        texture: TilemapTexture::Single(texture_handle),
+        tile_size,
+        transform: get_tilemap_center_transform(
+            &tilemap_size,
+            &grid_size,
+            &TilemapType::Square,
+            0.,
+        ) * Transform::from_xyz(-TILE_SIZE / 2., 0.0, 0.0),
+        ..Default::default()
+    });
 }
 
 fn update_world() {}

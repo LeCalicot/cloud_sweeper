@@ -988,13 +988,13 @@ fn set_up_logic(mut commands: Commands) {
     commands.insert_resource(PlayerControl {
         player_pos: INIT_POS,
         input_buffer: [GameControl::Idle; MAX_BUFFER_INPUT],
-        timer: Timer::from_seconds(MOVE_TIMER, true),
+        timer: Timer::from_seconds(MOVE_TIMER, TimerMode::Repeating),
     });
     commands.insert_resource(GridState::default());
     commands.insert_resource(CloudControl {
         cur_new_cloud: None,
         cur_cloud_move: None,
-        move_timer: Timer::from_seconds(CLOUD_TIMER, true),
+        move_timer: Timer::from_seconds(CLOUD_TIMER, TimerMode::Repeating),
         cur_cloud: CloudDir::Left,
         sequence: SEQUENCE,
         spawn_counter: [

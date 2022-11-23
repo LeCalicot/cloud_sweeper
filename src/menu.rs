@@ -67,11 +67,11 @@ impl Default for ButtonColors {
 fn setup_menu(
     mut commands: Commands,
     font_assets: Res<FontAssets>,
-    button_colors: Res<ButtonColors>,
+    // button_colors: Res<ButtonColors>,
     query: Query<Entity, With<Camera2d>>,
 ) {
     if query.into_iter().count() == 0 {
-        commands.spawn_bundle(Camera2dBundle::default()).insert(
+        commands.spawn(Camera2dBundle::default()).insert(
             Transform::from_xyz(0., 0., CAMERA_LAYER).with_scale(Vec3::new(
                 DISPLAY_RATIO,
                 DISPLAY_RATIO,
@@ -82,7 +82,7 @@ fn setup_menu(
     // .insert(Transform::from_scale(Vec3::new(1. / 4., 1. / 4., 1.)));
     // commands.spawn_bundle(Camera2dBundle::default());
     commands
-        .spawn_bundle(ButtonBundle {
+        .spawn(ButtonBundle {
             style: Style {
                 size: Size::new(Val::Px(120.0), Val::Px(50.0)),
                 margin: UiRect::all(Val::Auto),
@@ -95,7 +95,7 @@ fn setup_menu(
         })
         .insert(MainMenu)
         .with_children(|parent| {
-            parent.spawn_bundle(TextBundle {
+            parent.spawn(TextBundle {
                 text: Text {
                     sections: vec![TextSection {
                         value: "Play".to_string(),
@@ -136,7 +136,7 @@ fn click_play_button(
 
 #[cfg(debug_assertions)]
 fn debug_start_auto(mut commands: Commands, time: Res<Time>) {
-    if time.time_since_startup() > Duration::from_millis(AUTOSTART_TIME_MS) {
+    if time.elapsed() > Duration::from_millis(AUTOSTART_TIME_MS) {
         commands.insert_resource(NextState(GameState::Playing));
     };
 }
@@ -147,11 +147,11 @@ fn cleanup_menu(mut commands: Commands, button: Query<Entity, With<MainMenu>>) {
 
 fn setup_game_over_screen(
     mut commands: Commands,
-    button_colors: Res<ButtonColors>,
+    // button_colors: Res<ButtonColors>,
     font_assets: Res<FontAssets>,
 ) {
     commands
-        .spawn_bundle(ButtonBundle {
+        .spawn(ButtonBundle {
             style: Style {
                 size: Size::new(Val::Px(120.0), Val::Px(50.0)),
                 margin: UiRect::all(Val::Auto),
@@ -163,7 +163,7 @@ fn setup_game_over_screen(
             ..Default::default()
         })
         .with_children(|parent| {
-            parent.spawn_bundle(TextBundle {
+            parent.spawn(TextBundle {
                 text: Text {
                     sections: vec![TextSection {
                         value: "Retry".to_string(),
@@ -181,7 +181,7 @@ fn setup_game_over_screen(
         .insert(GameOver);
 
     commands
-        .spawn_bundle(ButtonBundle {
+        .spawn(ButtonBundle {
             style: Style {
                 size: Size::new(Val::Px(120.0), Val::Px(50.0)),
                 margin: UiRect::all(Val::Auto),
@@ -193,7 +193,7 @@ fn setup_game_over_screen(
             ..Default::default()
         })
         .with_children(|parent| {
-            parent.spawn_bundle(TextBundle {
+            parent.spawn(TextBundle {
                 text: Text {
                     sections: vec![TextSection {
                         value: "Quit".to_string(),
