@@ -87,8 +87,8 @@ fn setup_mess_bar(mut commands: Commands, asset_server: Res<AssetServer>) {
 /// Method to compute the positions of the blocks of the load bar
 pub fn get_mess_tile_pos(ndx: u32, z: f32) -> Transform {
     Transform::from_xyz(
-        ((LEVEL_SIZE as f32) / 2. - 0.5) * TILE_SIZE,
-        -TILE_SIZE * (LEVEL_SIZE as f32) / 2. + ndx as f32,
+        ((LEVEL_SIZE as f32) / 2.) * TILE_SIZE,
+        -TILE_SIZE * (LEVEL_SIZE as f32 - 1.) / 2. + ndx as f32,
         z,
     )
 }
