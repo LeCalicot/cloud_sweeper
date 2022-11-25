@@ -7,10 +7,11 @@ use crate::GameState;
 use crate::{clouds::Cloud, loading::FontAssets};
 use bevy::prelude::*;
 use bevy::window::close_on_esc;
+use bevy_kira_audio::prelude::*;
+use bevy_kira_audio::{Audio, AudioEasing, AudioTween};
 use iyes_loopless::prelude::*;
-
 #[cfg(debug_assertions)]
-const AUTOSTART_TIME_MS: u64 = 500;
+const AUTOSTART_TIME_MS: u64 = 1000;
 use crate::world::{Platform, Sky, CAMERA_LAYER, DISPLAY_RATIO};
 use std::time::Duration;
 
@@ -256,8 +257,13 @@ fn game_over_clear(
 fn exit_game_over_menu(
     mut commands: Commands,
     mut query: Query<Entity, (With<Button>, With<GameOver>)>,
+    audio: Res<Audio>,
 ) {
     for entity in query.iter_mut() {
         commands.entity(entity).despawn_recursive();
+        audio.stop().fade_out(AudioTween::new(
+            Duration::from_secs(1),
+            AudioEasing::InOutPowi(2),
+        ));
     }
 }

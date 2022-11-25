@@ -1,6 +1,6 @@
 #![cfg_attr(debug_assertions, allow(dead_code, unused_imports))]
 
-use crate::GameState;
+use crate::{audio::SelectedSong, GameState};
 use bevy::prelude::*;
 use bevy_asset_loader::prelude::*;
 use bevy_kira_audio::AudioSource;
@@ -16,7 +16,7 @@ impl Plugin for LoadingPlugin {
             LoadingState::new(GameState::Loading)
                 .continue_to_state(GameState::Menu)
                 .with_collection::<FontAssets>()
-                // .with_collection::<AudioAssets>()
+                .with_collection::<AudioAssets>()
                 .with_collection::<TextureAssets>(),
         );
     }
@@ -33,8 +33,17 @@ pub struct FontAssets {
 
 #[derive(AssetCollection, Resource)]
 pub struct AudioAssets {
-    #[asset(path = "audio/flying.ogg")]
-    pub flying: Handle<AudioSource>,
+    pub selected_song: SelectedSong,
+    #[asset(path = "audio/song_1/song_full.wav")]
+    pub song_1: Handle<AudioSource>,
+    #[asset(path = "audio/song_1/sample_1.wav")]
+    pub song_1_sample_1: Handle<AudioSource>,
+    #[asset(path = "audio/song_1/sample_2.wav")]
+    pub song_1_sample_2: Handle<AudioSource>,
+    #[asset(path = "audio/song_2/song_full.wav")]
+    pub song_2: Handle<AudioSource>,
+    #[asset(path = "audio/debug_beep_200ms.wav")]
+    pub debug_beep: Handle<AudioSource>,
 }
 
 #[derive(AssetCollection, Resource)]

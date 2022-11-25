@@ -23,7 +23,7 @@ use rand::seq::SliceRandom;
 pub const MAX_BUFFER_INPUT: usize = 10;
 const MOVE_TIMER: f32 = 0.020;
 // Multiple of the move timer:
-const SPAWN_FREQUENCY: u8 = 4;
+const SPAWN_FREQUENCY: u8 = 2;
 // Offset for delaying cloud spawning depending on the direction:
 const SPAWN_OFFSET: [u8; 4] = [0, 1, 0, 1];
 // const CLOUD_TIMER: f32 = 0.1;
@@ -130,7 +130,7 @@ pub struct CloudControl {
     pub cur_new_cloud: Option<CloudDir>,
     pub cur_cloud_move: Option<CloudDir>,
     cur_cloud: CloudDir,
-    move_timer: Timer,
+    pub move_timer: Timer,
     sequence: [CloudDir; 4],
     spawn_counter: [u8; 4],
     pub pushed_clouds: Vec<([i8; 2], CloudDir)>,
