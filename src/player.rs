@@ -7,7 +7,7 @@ use crate::logic::{CloudControl, GridState, PushState, TileOccupation, MAX_BUFFE
 use crate::world::{STAGE_BL, STAGE_UR};
 use crate::GameState;
 use bevy::prelude::*;
-use bevy::render::texture::ImageSettings;
+// use bevy::render::texture::ImageSettings;
 use iyes_loopless::prelude::*;
 
 pub const TILE_SIZE: f32 = 16.;
@@ -19,7 +19,7 @@ pub struct PlayerPlugin;
 /// Contains the info about the player
 ///
 /// The bufferis a FIFO, with the oldest element at index 0.
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct PlayerControl {
     pub input_buffer: [GameControl; MAX_BUFFER_INPUT],
     pub player_pos: [i8; 2],
@@ -111,11 +111,17 @@ fn spawn_player(
     asset_server: Res<AssetServer>,
 ) {
     let texture_handle = asset_server.load("textures/duck_spritesheet.png");
-    let texture_atlas =
-        TextureAtlas::from_grid(texture_handle, Vec2::new(TILE_SIZE, TILE_SIZE), 1, 4);
+    let texture_atlas = TextureAtlas::from_grid(
+        texture_handle,
+        Vec2::new(TILE_SIZE, TILE_SIZE),
+        1,
+        4,
+        None,
+        None,
+    );
     let texture_atlas_handle = texture_atlases.add(texture_atlas);
     commands
-        .spawn_bundle(SpriteSheetBundle {
+        .spawn(SpriteSheetBundle {
             texture_atlas: texture_atlas_handle,
             transform: Transform::from_xyz(
                 TILE_SIZE * (0.5 + (INIT_POS[0] as f32)),
@@ -125,7 +131,10 @@ fn spawn_player(
             ..default()
         })
         .insert(Player::default())
-        .insert(AnimationTimer(Timer::from_seconds(0.1, true)));
+        .insert(AnimationTimer(Timer::from_seconds(
+            0.1,
+            TimerMode::Repeating,
+        )));
 }
 
 /// Pop and applies all the player moves when the timer expires

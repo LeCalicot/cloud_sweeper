@@ -22,7 +22,7 @@ impl Plugin for ActionsPlugin {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Resource)]
 pub struct Actions {
     pub next_move: GameControl,
 }
@@ -44,7 +44,7 @@ fn set_movement_actions(mut actions: ResMut<Actions>, keyboard_input: Res<Input<
 
 ///Enum for the direction. Idle has been added to be able to use an array buffer
 /// instead of a vector.
-#[derive(Default, Eq, PartialEq, Debug, Copy, Clone)]
+#[derive(Default, Eq, PartialEq, Debug, Copy, Clone, Resource)]
 pub enum GameControl {
     #[default]
     Idle,

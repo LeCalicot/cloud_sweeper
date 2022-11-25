@@ -15,7 +15,7 @@ use crate::ui::MessBar;
 use crate::world::{LEVEL_SIZE, STAGE_BL, STAGE_UR, STAGE_WIDTH};
 use crate::GameState;
 use bevy::prelude::*;
-use bevy::render::texture::ImageSettings;
+// use bevy::render::texture::ImageSettings;
 use colored::*;
 use iyes_loopless::prelude::*;
 use rand::seq::SliceRandom;
@@ -125,7 +125,7 @@ pub enum TileOccupation {
 #[derive(Component, Deref, DerefMut)]
 struct AnimationTimer(Timer);
 
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct CloudControl {
     pub cur_new_cloud: Option<CloudDir>,
     pub cur_cloud_move: Option<CloudDir>,
@@ -137,6 +137,7 @@ pub struct CloudControl {
     pub next_pushed_clouds: Vec<([i8; 2], CloudDir, PushState)>,
 }
 
+#[derive(Resource)]
 pub struct GridState {
     pub grid: [[TileOccupation; LEVEL_SIZE as usize]; LEVEL_SIZE as usize],
     pub cloud_count: u8,
@@ -987,13 +988,13 @@ fn set_up_logic(mut commands: Commands) {
     commands.insert_resource(PlayerControl {
         player_pos: INIT_POS,
         input_buffer: [GameControl::Idle; MAX_BUFFER_INPUT],
-        timer: Timer::from_seconds(MOVE_TIMER, true),
+        timer: Timer::from_seconds(MOVE_TIMER, TimerMode::Repeating),
     });
     commands.insert_resource(GridState::default());
     commands.insert_resource(CloudControl {
         cur_new_cloud: None,
         cur_cloud_move: None,
-        move_timer: Timer::from_seconds(CLOUD_TIMER, true),
+        move_timer: Timer::from_seconds(CLOUD_TIMER, TimerMode::Repeating),
         cur_cloud: CloudDir::Left,
         sequence: SEQUENCE,
         spawn_counter: [

@@ -67,14 +67,14 @@ pub fn new_cloud(
             match cloud_dir {
                 CloudDir::Down => {
                     commands
-                        .spawn_bundle(SpriteBundle {
+                        .spawn(SpriteBundle {
                             texture: asset_server.load("textures/down_cloud.png"),
                             transform: Transform::from_translation(cloud_pos_vec),
                             ..default()
                         })
                         .insert(DownCloud)
                         .insert(CooldownTimer {
-                            timer: Timer::from_seconds(PUSH_COOLDOWN, true),
+                            timer: Timer::from_seconds(PUSH_COOLDOWN, TimerMode::Once),
                         })
                         .insert(Cloud {
                             dir: CloudDir::Down,
@@ -86,14 +86,14 @@ pub fn new_cloud(
                 }
                 CloudDir::Left => {
                     commands
-                        .spawn_bundle(SpriteBundle {
+                        .spawn(SpriteBundle {
                             texture: asset_server.load("textures/left_cloud.png"),
                             transform: Transform::from_translation(cloud_pos_vec),
                             ..default()
                         })
                         .insert(LeftCloud)
                         .insert(CooldownTimer {
-                            timer: Timer::from_seconds(PUSH_COOLDOWN, true),
+                            timer: Timer::from_seconds(PUSH_COOLDOWN, TimerMode::Once),
                         })
                         .insert(Cloud {
                             dir: CloudDir::Left,
@@ -105,14 +105,14 @@ pub fn new_cloud(
                 }
                 CloudDir::Up => {
                     commands
-                        .spawn_bundle(SpriteBundle {
+                        .spawn(SpriteBundle {
                             texture: asset_server.load("textures/up_cloud.png"),
                             transform: Transform::from_translation(cloud_pos_vec),
                             ..default()
                         })
                         .insert(UpCloud)
                         .insert(CooldownTimer {
-                            timer: Timer::from_seconds(PUSH_COOLDOWN, true),
+                            timer: Timer::from_seconds(PUSH_COOLDOWN, TimerMode::Once),
                         })
                         .insert(IsCooldown { val: false })
                         .insert(Cloud { dir: CloudDir::Up })
@@ -122,7 +122,7 @@ pub fn new_cloud(
                 }
                 CloudDir::Right => {
                     commands
-                        .spawn_bundle(SpriteBundle {
+                        .spawn(SpriteBundle {
                             texture: asset_server.load("textures/right_cloud.png"),
                             transform: Transform::from_translation(cloud_pos_vec),
                             ..default()
@@ -132,7 +132,7 @@ pub fn new_cloud(
                             dir: CloudDir::Right,
                         })
                         .insert(CooldownTimer {
-                            timer: Timer::from_seconds(PUSH_COOLDOWN, true),
+                            timer: Timer::from_seconds(PUSH_COOLDOWN, TimerMode::Once),
                         })
                         .insert(IsCooldown { val: false })
                         .insert(GridPos {
