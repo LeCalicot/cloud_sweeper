@@ -1,0 +1,19 @@
+(
+    // The actual sound file in your assets directory
+    file: "audio/debug_beep_200ms.wav",
+
+    // Start sound at 2 seconds
+    start_position: 0.,
+    // Half amplitude
+    volume: 0.05,
+    // Play 50% faster (this also changes the pitch)
+    playback_rate: 1.0,
+    // Play more on the right
+    panning: 0.5,
+    // Reverse the sound
+    reverse: false,
+    // Loop the sound
+    loop_behavior: None,
+    // fade the sound
+    fade_in_tween: None,
+)

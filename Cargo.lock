@@ -497,6 +497,8 @@ dependencies = [
  "bevy",
  "kira",
  "parking_lot",
+ "ron",
+ "serde",
  "thiserror",
 ]
 

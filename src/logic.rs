@@ -27,7 +27,7 @@ const SPAWN_FREQUENCY: u8 = 2;
 // Offset for delaying cloud spawning depending on the direction:
 const SPAWN_OFFSET: [u8; 4] = [0, 1, 0, 1];
 // const CLOUD_TIMER: f32 = 0.1;
-const CLOUD_TIMER: f32 = 0.4;
+const CLOUD_TIMER: f32 = 0.6;
 const SEQUENCE: [CloudDir; 4] = [
     CloudDir::Left,
     CloudDir::Up,
@@ -967,7 +967,7 @@ fn push_clouds(
 }
 
 fn set_cloud_direction(mut cloud_control: ResMut<CloudControl>) {
-    if cloud_control.move_timer.finished() {
+    if cloud_control.move_timer.just_finished() {
         let cloud_dir = Some(cloud_control.next_cloud_direction());
         debug!("cloud dir.: {:?}", cloud_dir.unwrap());
         cloud_control.cur_cloud_move = cloud_dir;
@@ -1017,7 +1017,7 @@ fn tick_timer(
 
     for (mut timer, mut status) in query.iter_mut() {
         timer.tick(time.delta());
-        if timer.finished() {
+        if timer.just_finished() {
             status.val = false;
         }
     }

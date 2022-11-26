@@ -148,7 +148,7 @@ pub fn pop_player_buffer(
     player_control.timer.tick(time.delta());
 
     // if it finished, despawn the bomb
-    if player_control.timer.finished() {
+    if player_control.timer.just_finished() {
         let player_action = player_control.input_buffer[0];
         player_control.input_buffer[0] = GameControl::Idle;
         player_control.input_buffer.rotate_left(1);

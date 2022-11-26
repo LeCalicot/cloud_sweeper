@@ -34,15 +34,15 @@ pub struct FontAssets {
 #[derive(AssetCollection, Resource)]
 pub struct AudioAssets {
     pub selected_song: SelectedSong,
-    #[asset(path = "audio/song_1/song_full.wav")]
+    #[asset(path = "audio/song_1/song_full.wav.ron")]
     pub song_1: Handle<AudioSource>,
-    #[asset(path = "audio/song_1/sample_1.wav")]
+    #[asset(path = "audio/song_1/sample_1.wav.ron")]
     pub song_1_sample_1: Handle<AudioSource>,
-    #[asset(path = "audio/song_1/sample_2.wav")]
+    #[asset(path = "audio/song_1/sample_2.wav.ron")]
     pub song_1_sample_2: Handle<AudioSource>,
-    #[asset(path = "audio/song_2/song_full.wav")]
+    #[asset(path = "audio/song_2/song_full.wav.ron")]
     pub song_2: Handle<AudioSource>,
-    #[asset(path = "audio/debug_beep_200ms.wav")]
+    #[asset(path = "audio/debug_beep_200ms.wav.ron")]
     pub debug_beep: Handle<AudioSource>,
 }
 

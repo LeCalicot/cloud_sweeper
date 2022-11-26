@@ -13,8 +13,8 @@ pub struct InternalAudioPlugin;
 
 #[derive(Default, Eq, PartialEq, Debug, Copy, Clone)]
 pub enum SelectedSong {
-    #[default]
     Song1,
+    #[default]
     Song2,
 }
 
@@ -33,10 +33,12 @@ impl Plugin for InternalAudioPlugin {
 }
 
 fn play_music(audio_assets: Res<AudioAssets>, audio: Res<Audio>) {
-    audio
-        .play(audio_assets.song_1.clone())
-        .looped()
-        .with_volume(0.5);
+    if audio_assets.selected_song == SelectedSong::Song1 {
+        audio.play(audio_assets.song_1.clone());
+    }
+    if audio_assets.selected_song == SelectedSong::Song2 {
+        audio.play(audio_assets.song_2.clone());
+    }
 }
 
 fn play_debug_beep_on_spawn(
@@ -44,7 +46,7 @@ fn play_debug_beep_on_spawn(
     audio_assets: Res<AudioAssets>,
     audio: Res<Audio>,
 ) {
-    if cloud_control.move_timer.finished() {
-        audio.play(audio_assets.debug_beep.clone()).with_volume(0.5);
+    if cloud_control.move_timer.just_finished() {
+        audio.play(audio_assets.debug_beep.clone());
     }
 }
