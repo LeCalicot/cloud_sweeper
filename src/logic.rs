@@ -20,14 +20,14 @@ use colored::*;
 use iyes_loopless::prelude::*;
 use rand::seq::SliceRandom;
 
-pub const MAX_BUFFER_INPUT: usize = 10;
-const MAIN_PERIOD: f32 = 0.300;
+pub const MAX_BUFFER_INPUT: usize = 2;
+const MAIN_PERIOD: f32 = 0.150;
 // Multiple of the move timer:
-const SPAWN_FREQUENCY: u8 = 2;
+const SPAWN_FREQUENCY: u8 = 3;
 // Offset for delaying cloud spawning depending on the direction:
 const SPAWN_OFFSET: [u8; 4] = [0, 1, 0, 1];
 // We sync the actions of the player with the music
-const TIMER_SCALE_FACTOR: u8 = 2;
+const TIMER_SCALE_FACTOR: u8 = 4;
 const SEQUENCE: [CloudDir; 4] = [
     CloudDir::Left,
     CloudDir::Up,
@@ -35,9 +35,9 @@ const SEQUENCE: [CloudDir; 4] = [
     CloudDir::Down,
 ];
 pub const PUSH_COOLDOWN: f32 = 0.4;
-pub const CLOUD_COUNT_LOSE_COND: usize = 10;
+pub const CLOUD_COUNT_LOSE_COND: usize = 16;
 // How late after the beat the player can be and still move:
-pub const FORGIVENESS_MARGIN: f32 = 0.50;
+pub const FORGIVENESS_MARGIN: f32 = 0.050;
 
 pub struct LogicPlugin;
 
@@ -134,7 +134,7 @@ pub struct MainClock {
     pub move_player: bool,
     pub move_clouds: bool,
     forgiveness_margin: f32,
-    player_counter: u8,
+    cloud_counter: u8,
 }
 
 fn tick_timers(
@@ -147,19 +147,24 @@ fn tick_timers(
     main_clock.main_timer.tick(time.delta());
 
     if main_clock.main_timer.just_finished() {
+        main_clock.cloud_counter += 1;
         main_clock.move_player = true;
-        main_clock.player_counter += 1;
-        if main_clock.player_counter >= TIMER_SCALE_FACTOR {
+        if main_clock.cloud_counter >= TIMER_SCALE_FACTOR {
             main_clock.move_clouds = true;
+            main_clock.cloud_counter = 0;
         }
     } else {
-        main_clock.move_player = false;
         main_clock.move_clouds = false;
+        if main_clock.main_timer.elapsed_secs() < main_clock.forgiveness_margin {
+            main_clock.move_player = true;
+        } else {
+            main_clock.move_player = false;
+        }
     }
     /* ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ Cooldown Timers ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ */
     for (mut timer, mut status) in query.iter_mut() {
         timer.tick(time.delta());
-        if timer.just_finished() {
+        if timer.finished() {
             status.val = false;
         }
     }

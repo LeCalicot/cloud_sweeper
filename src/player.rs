@@ -233,7 +233,7 @@ pub fn pop_player_buffer(
             match push_state {
                 PushState::Empty => {
                     player_control.player_pos = player_new_pos;
-                    info!("pl. pos: {:?}", player_control.player_pos);
+                    debug!("pl. pos: {:?}", player_control.player_pos);
                     grid_state.grid[player_old_pos[0] as usize][player_old_pos[1] as usize] =
                         TileOccupation::Empty;
                     grid_state.grid[player_new_pos[0] as usize][player_new_pos[1] as usize] =

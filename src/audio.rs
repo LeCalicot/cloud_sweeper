@@ -47,6 +47,6 @@ fn play_debug_beep_on_spawn(
     audio: Res<Audio>,
 ) {
     if main_clock.move_clouds {
-        audio.play(audio_assets.debug_beep.clone());
+        // audio.play(audio_assets.debug_beep.clone());
     }
 }
