@@ -21,13 +21,13 @@ use iyes_loopless::prelude::*;
 use rand::seq::SliceRandom;
 
 pub const MAX_BUFFER_INPUT: usize = 10;
-const MOVE_TIMER: f32 = 0.020;
+const MAIN_PERIOD: f32 = 0.300;
 // Multiple of the move timer:
 const SPAWN_FREQUENCY: u8 = 2;
 // Offset for delaying cloud spawning depending on the direction:
 const SPAWN_OFFSET: [u8; 4] = [0, 1, 0, 1];
-// const CLOUD_TIMER: f32 = 0.1;
-const CLOUD_TIMER: f32 = 0.6;
+// We sync the actions of the player with the music
+const TIMER_SCALE_FACTOR: u8 = 2;
 const SEQUENCE: [CloudDir; 4] = [
     CloudDir::Left,
     CloudDir::Up,
@@ -36,6 +36,8 @@ const SEQUENCE: [CloudDir; 4] = [
 ];
 pub const PUSH_COOLDOWN: f32 = 0.4;
 pub const CLOUD_COUNT_LOSE_COND: usize = 10;
+// How late after the beat the player can be and still move:
+pub const FORGIVENESS_MARGIN: f32 = 0.50;
 
 pub struct LogicPlugin;
 
@@ -49,7 +51,7 @@ impl Plugin for LogicPlugin {
                     .run_in_state(GameState::Playing)
                     .label("tick_clock")
                     .before("move_clouds")
-                    .with_system(tick_timer)
+                    .with_system(tick_timers)
                     .with_system(set_cloud_direction)
                     .into(),
             )
@@ -126,11 +128,48 @@ pub enum TileOccupation {
 struct AnimationTimer(Timer);
 
 #[derive(Default, Resource)]
+pub struct MainClock {
+    pub main_timer: Timer,
+    player_to_cloud_ratio: f32,
+    pub move_player: bool,
+    pub move_clouds: bool,
+    forgiveness_margin: f32,
+    player_counter: u8,
+}
+
+fn tick_timers(
+    mut main_clock: ResMut<MainClock>,
+    time: Res<Time>,
+    mut query: Query<(&mut CooldownTimer, &mut IsCooldown), With<Cloud>>,
+) {
+    /* ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ Global timers to sync with the music ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ */
+    // timers gotta be ticked, to work
+    main_clock.main_timer.tick(time.delta());
+
+    if main_clock.main_timer.just_finished() {
+        main_clock.move_player = true;
+        main_clock.player_counter += 1;
+        if main_clock.player_counter >= TIMER_SCALE_FACTOR {
+            main_clock.move_clouds = true;
+        }
+    } else {
+        main_clock.move_player = false;
+        main_clock.move_clouds = false;
+    }
+    /* ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ Cooldown Timers ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ */
+    for (mut timer, mut status) in query.iter_mut() {
+        timer.tick(time.delta());
+        if timer.just_finished() {
+            status.val = false;
+        }
+    }
+}
+
+#[derive(Default, Resource)]
 pub struct CloudControl {
     pub cur_new_cloud: Option<CloudDir>,
     pub cur_cloud_move: Option<CloudDir>,
     cur_cloud: CloudDir,
-    pub move_timer: Timer,
     sequence: [CloudDir; 4],
     spawn_counter: [u8; 4],
     pub pushed_clouds: Vec<([i8; 2], CloudDir)>,
@@ -966,8 +1005,8 @@ fn push_clouds(
     }
 }
 
-fn set_cloud_direction(mut cloud_control: ResMut<CloudControl>) {
-    if cloud_control.move_timer.just_finished() {
+fn set_cloud_direction(mut cloud_control: ResMut<CloudControl>, main_clock: Res<MainClock>) {
+    if main_clock.move_clouds {
         let cloud_dir = Some(cloud_control.next_cloud_direction());
         debug!("cloud dir.: {:?}", cloud_dir.unwrap());
         cloud_control.cur_cloud_move = cloud_dir;
@@ -988,13 +1027,18 @@ fn set_up_logic(mut commands: Commands) {
     commands.insert_resource(PlayerControl {
         player_pos: INIT_POS,
         input_buffer: [GameControl::Idle; MAX_BUFFER_INPUT],
-        timer: Timer::from_seconds(MOVE_TIMER, TimerMode::Repeating),
+        timer: Timer::from_seconds(MAIN_PERIOD, TimerMode::Repeating),
     });
     commands.insert_resource(GridState::default());
+    commands.insert_resource(MainClock {
+        main_timer: Timer::from_seconds(MAIN_PERIOD, TimerMode::Repeating),
+        player_to_cloud_ratio: TIMER_SCALE_FACTOR as f32,
+        forgiveness_margin: FORGIVENESS_MARGIN,
+        ..Default::default()
+    });
     commands.insert_resource(CloudControl {
         cur_new_cloud: None,
         cur_cloud_move: None,
-        move_timer: Timer::from_seconds(CLOUD_TIMER, TimerMode::Repeating),
         cur_cloud: CloudDir::Left,
         sequence: SEQUENCE,
         spawn_counter: [
@@ -1005,22 +1049,6 @@ fn set_up_logic(mut commands: Commands) {
         ],
         ..Default::default()
     });
-}
-
-fn tick_timer(
-    mut cloud_control: ResMut<CloudControl>,
-    time: Res<Time>,
-    mut query: Query<(&mut CooldownTimer, &mut IsCooldown), With<Cloud>>,
-) {
-    // timers gotta be ticked, to work
-    cloud_control.move_timer.tick(time.delta());
-
-    for (mut timer, mut status) in query.iter_mut() {
-        timer.tick(time.delta());
-        if timer.just_finished() {
-            status.val = false;
-        }
-    }
 }
 
 fn update_cloud_pos(mut query: Query<(&mut GridPos, &mut Transform), (With<Cloud>,)>) {

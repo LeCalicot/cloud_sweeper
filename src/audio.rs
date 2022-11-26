@@ -2,7 +2,7 @@
 
 use crate::actions::{Actions, GameControl};
 use crate::loading::AudioAssets;
-use crate::logic::CloudControl;
+use crate::logic::{CloudControl, MainClock};
 use crate::GameState;
 use bevy::prelude::*;
 use bevy_kira_audio::prelude::*;
@@ -42,11 +42,11 @@ fn play_music(audio_assets: Res<AudioAssets>, audio: Res<Audio>) {
 }
 
 fn play_debug_beep_on_spawn(
-    cloud_control: Res<CloudControl>,
+    main_clock: Res<MainClock>,
     audio_assets: Res<AudioAssets>,
     audio: Res<Audio>,
 ) {
-    if cloud_control.move_timer.just_finished() {
+    if main_clock.move_clouds {
         audio.play(audio_assets.debug_beep.clone());
     }
 }
