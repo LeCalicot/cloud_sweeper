@@ -18,6 +18,11 @@ pub enum SelectedSong {
     Song2,
 }
 
+#[derive(Resource)]
+pub struct InstanceHandle {
+    handle: Handle<AudioInstance>,
+}
+// WIP: finish this replacement.
 // This plugin is responsible to control the game audio
 impl Plugin for InternalAudioPlugin {
     fn build(&self, app: &mut App) {
@@ -27,17 +32,33 @@ impl Plugin for InternalAudioPlugin {
                 ConditionSet::new()
                     .run_in_state(GameState::Playing)
                     .with_system(play_debug_beep_on_spawn)
+                    .with_system(resync_music)
                     .into(),
             );
     }
 }
 
-fn play_music(audio_assets: Res<AudioAssets>, audio: Res<Audio>) {
+fn play_music(audio_assets: Res<AudioAssets>, audio: Res<Audio>, mut commands: Commands) {
+    let handle: Handle<AudioInstance>;
     if audio_assets.selected_song == SelectedSong::Song1 {
-        audio.play(audio_assets.song_1.clone());
+        handle = audio.play(audio_assets.song_1.clone()).handle();
+        commands.insert_resource(InstanceHandle { handle });
+    } else if audio_assets.selected_song == SelectedSong::Song2 {
+        handle = audio.play(audio_assets.song_2.clone()).handle();
+        commands.insert_resource(InstanceHandle { handle });
     }
-    if audio_assets.selected_song == SelectedSong::Song2 {
-        audio.play(audio_assets.song_2.clone());
+}
+
+fn resync_music(
+    mut audio_instances: ResMut<Assets<AudioInstance>>,
+    main_clock: Res<MainClock>,
+    handle: Res<InstanceHandle>,
+) {
+    if audio_instances.get_mut(&handle.handle).is_some() {
+        let play_pos = audio_instances.state(&handle.handle).position();
+        if main_clock.move_clouds {
+            info!("{play_pos:?}")
+        }
     }
 }
 
