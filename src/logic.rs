@@ -1,5 +1,7 @@
 #![cfg_attr(debug_assertions, allow(dead_code, unused_imports))]
 
+use std::time::Duration;
+
 use crate::actions::{Actions, GameControl};
 use crate::clouds;
 use crate::clouds::{
@@ -21,13 +23,13 @@ use iyes_loopless::prelude::*;
 use rand::seq::SliceRandom;
 
 pub const MAX_BUFFER_INPUT: usize = 2;
-const MAIN_PERIOD: f32 = 0.150;
+pub const MAIN_PERIOD: f32 = 0.150;
 // Multiple of the move timer:
-const SPAWN_FREQUENCY: u8 = 3;
+pub const SPAWN_FREQUENCY: u8 = 3;
 // Offset for delaying cloud spawning depending on the direction:
 const SPAWN_OFFSET: [u8; 4] = [0, 1, 0, 1];
 // We sync the actions of the player with the music
-const TIMER_SCALE_FACTOR: u8 = 4;
+pub const TIMER_SCALE_FACTOR: u8 = 4;
 const SEQUENCE: [CloudDir; 4] = [
     CloudDir::Left,
     CloudDir::Up,
@@ -130,6 +132,8 @@ struct AnimationTimer(Timer);
 #[derive(Default, Resource)]
 pub struct MainClock {
     pub main_timer: Timer,
+    pub time_correction: f32,
+    pub excess_time: f32,
     player_to_cloud_ratio: f32,
     pub move_player: bool,
     pub move_clouds: bool,
@@ -143,13 +147,45 @@ fn tick_timers(
     mut query: Query<(&mut CooldownTimer, &mut IsCooldown), With<Cloud>>,
 ) {
     /* ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ Global timers to sync with the music ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ */
-    // timers gotta be ticked, to work
+    // The correction is positive if the game logic is late, negative
+    // if in advance:
+    let corr = main_clock.time_correction;
+    let corrected_dur = if corr >= 0. {
+        time.delta() + Duration::from_secs_f32(corr)
+    } else {
+        // Let's not go faser tan the music:
+        Duration::from_secs_f32(0.)
+    };
+    // remove some of the correction:
+    main_clock.time_correction = corr * (1. - corrected_dur.as_secs_f32());
+    // println!(
+    //     "{} {} {:?} {:?}",
+    //     { "➤".blue() },
+    //     { "AAA:".blue() },
+    //     { corrected_dur },
+    //     { time.delta() }
+    // );
+    // main_clock.main_timer.tick(corrected_dur);
     main_clock.main_timer.tick(time.delta());
+
+    // if main_clock.time_correction.abs() > 0. && main_clock.time_correction > time.delta_seconds() {
+    //     // it's positive, meaning that the clock is behind the audio
+    //     // then we compensate the clock:
+    //     println!("{} {} {:?}", {"➤".blue()}, {"AAA:".blue()}, {});
+    //     let corr = main_clock.time_correction;
+    //     main_clock
+    //         .main_timer
+    //         .tick(time.delta() + Duration::from_secs_f32(corr));
+    // } else {
+    //     // The audio is behind, wait for it:
+    //     {}
+    // }
 
     if main_clock.main_timer.just_finished() {
         main_clock.cloud_counter += 1;
         main_clock.move_player = true;
         if main_clock.cloud_counter >= TIMER_SCALE_FACTOR {
+            main_clock.excess_time = time.delta_seconds();
             main_clock.move_clouds = true;
             main_clock.cloud_counter = 0;
         }
