@@ -135,7 +135,9 @@ struct AnimationTimer(Timer);
 pub struct MainClock {
     pub main_timer: Timer,
     pub absolute_timer: Timer,
-    pub intro_finished: bool,
+    pub last_absolute_timer: f32,
+    pub last_audio_time: f32,
+    // pub intro_finished: bool,
     pub excess_time: f32,
     player_to_cloud_ratio: f32,
     pub move_player: bool,
@@ -190,13 +192,13 @@ fn tick_timers(
         }
         _ => panic!(),
     }
-    println!(
-        "{} {} {:?} {:?}",
-        { "➤".blue() },
-        { "BBB:".blue() },
-        { tick_time },
-        { main_clock.excess_time }
-    );
+    // println!(
+    //     "{} {} {:?} {:?}",
+    //     { "➤".blue() },
+    //     { "BBB:".blue() },
+    //     { tick_time },
+    //     { main_clock.excess_time }
+    // );
     main_clock
         .main_timer
         .tick(Duration::from_secs_f32(tick_time));
@@ -205,12 +207,15 @@ fn tick_timers(
         .tick(Duration::from_secs_f32(tick_time));
     let current_abs_time = main_clock.absolute_timer.elapsed_secs();
 
-    // Remove the intro after the first loop:
-    if main_clock.absolute_timer.just_finished() && !main_clock.intro_finished {
+    // The audio loops after the intro, artificially add a jump in the absolute
+    // counter to keep the sync with the audio stream position:
+    if main_clock.absolute_timer.just_finished() {
+        main_clock
+            .main_timer
+            .tick(Duration::from_secs_f32(intro_length));
         main_clock
             .absolute_timer
-            .set_duration(Duration::from_secs_f32(song_length));
-        main_clock.intro_finished = true;
+            .tick(Duration::from_secs_f32(tick_time));
     }
 
     if main_clock.main_timer.just_finished() {
@@ -221,10 +226,26 @@ fn tick_timers(
         if let Some(play_pos) = play_pos {
             let audio_sync = play_pos - current_abs_time as f64;
             main_clock.excess_time = audio_sync as f32;
-            println!("{} {} {:?}", { "➤".blue() }, { "AAA:".blue() }, {
-                audio_sync
-            });
+            // println!(
+            //     "{} {} {:.3?} ms {:.3?} ms",
+            //     { "➤".blue() },
+            //     { "DDD:".blue() },
+            //     {
+            //         (main_clock.absolute_timer.elapsed_secs() - main_clock.last_absolute_timer)
+            //             * 1000.
+            //     },
+            //     { (play_pos as f32 - main_clock.last_absolute_timer) * 1000. }
+            // );
+            main_clock.last_absolute_timer = main_clock.absolute_timer.elapsed_secs();
+            main_clock.last_audio_time = play_pos as f32;
+            // println!(
+            //     "{} {} audio sync {:.1?} ms",
+            //     { "➤".blue() },
+            //     { "AAA:".blue() },
+            //     { audio_sync * 1000. }
+            // );
         }
+
         /* ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ Execute logic ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ */
         main_clock.cloud_counter += 1;
         main_clock.move_player = true;
@@ -232,11 +253,11 @@ fn tick_timers(
             main_clock.move_clouds = true;
             main_clock.cloud_counter = 0;
             println!(
-                "{} {} {:?} {:?}",
+                "{} {} {:.3?} {:.3?}",
                 { "➤".blue() },
                 { "CCC:".blue() },
                 { main_clock.absolute_timer.elapsed_secs() },
-                { play_pos }
+                { play_pos.unwrap() }
             );
         }
     } else {
@@ -1146,7 +1167,7 @@ fn set_up_logic(mut commands: Commands, audio_assets: Res<AudioAssets>) {
         absolute_timer: Timer::from_seconds(song_length + intro_length, TimerMode::Repeating),
         player_to_cloud_ratio: TIMER_SCALE_FACTOR as f32,
         forgiveness_margin: FORGIVENESS_MARGIN,
-        intro_finished: false,
+        // intro_finished: false,
         ..Default::default()
     });
     commands.insert_resource(CloudControl {
