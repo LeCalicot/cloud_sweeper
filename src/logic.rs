@@ -210,12 +210,13 @@ fn tick_timers(
     // The audio loops after the intro, artificially add a jump in the absolute
     // counter to keep the sync with the audio stream position:
     if main_clock.absolute_timer.just_finished() {
-        main_clock
-            .main_timer
-            .tick(Duration::from_secs_f32(intro_length));
+        println!("{} {} ----------------------------------------------------------------------------------", { "➤".blue() }, { "DDD:".blue() });
+        // main_clock
+        //     .main_timer
+        //     .tick(Duration::from_secs_f32(intro_length));
         main_clock
             .absolute_timer
-            .tick(Duration::from_secs_f32(tick_time));
+            .tick(Duration::from_secs_f32(intro_length));
     }
 
     if main_clock.main_timer.just_finished() {
@@ -225,7 +226,16 @@ fn tick_timers(
         // let mut audio_sync: f64 = 0.;
         if let Some(play_pos) = play_pos {
             let audio_sync = play_pos - current_abs_time as f64;
-            main_clock.excess_time = audio_sync as f32;
+            // Prevent problems when looping the song:
+            main_clock.excess_time = audio_sync.signum() as f32
+                * (audio_sync.abs() as f32).rem_euclid(beat_length / TIMER_SCALE_FACTOR as f32);
+            // println!(
+            //     "{} {} {:.3?} {:.3?}",
+            //     { "➤".blue() },
+            //     { "EEE:".blue() },
+            //     { audio_sync * 1000. },
+            //     { main_clock.excess_time * 1000. }
+            // );
             // println!(
             //     "{} {} {:.3?} ms {:.3?} ms",
             //     { "➤".blue() },
