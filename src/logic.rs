@@ -38,7 +38,9 @@ const SEQUENCE: [CloudDir; 4] = [
     CloudDir::Right,
     CloudDir::Down,
 ];
-pub const PUSH_COOLDOWN: f32 = 0.4;
+
+// The push cooldwn is a multiple of the main clock:
+pub const PUSH_COOLDOWN_FACTOR: f32 = 2.;
 pub const CLOUD_COUNT_LOSE_COND: usize = 16;
 // How late after the beat the player can be and still move:
 pub const FORGIVENESS_MARGIN: f32 = 0.050;
@@ -54,9 +56,18 @@ impl Plugin for LogicPlugin {
                 ConditionSet::new()
                     .run_in_state(GameState::Playing)
                     .label("tick_clock")
-                    .before("move_clouds")
+                    .before("reset_cooldown_timers")
                     .with_system(tick_timers)
                     .with_system(set_cloud_direction)
+                    .into(),
+            )
+            .add_system_set(
+                ConditionSet::new()
+                    .run_in_state(GameState::Playing)
+                    .label("reset_cooldown_timers")
+                    .after("tick_clock")
+                    .before("move_clouds")
+                    .with_system(reset_cooldown_timers)
                     .into(),
             )
             .add_system_set(
@@ -126,6 +137,7 @@ pub enum TileOccupation {
     UpCloud,
     DownCloud,
     Despawn,
+    CooldownCloud,
 }
 
 #[derive(Component, Deref, DerefMut)]
@@ -149,7 +161,6 @@ pub struct MainClock {
 fn tick_timers(
     mut main_clock: ResMut<MainClock>,
     time: Res<Time>,
-    mut query: Query<(&mut CooldownTimer, &mut IsCooldown), With<Cloud>>,
     mut audio_instances: ResMut<Assets<AudioInstance>>,
     handle: Res<InstanceHandle>,
     audio_assets: Res<AudioAssets>,
@@ -262,13 +273,13 @@ fn tick_timers(
         if main_clock.cloud_counter >= TIMER_SCALE_FACTOR {
             main_clock.move_clouds = true;
             main_clock.cloud_counter = 0;
-            println!(
-                "{} {} {:.3?} {:.3?}",
-                { "➤".blue() },
-                { "CCC:".blue() },
-                { main_clock.absolute_timer.elapsed_secs() },
-                { play_pos.unwrap() }
-            );
+            // println!(
+            //     "{} {} {:.3?} {:.3?}",
+            //     { "➤".blue() },
+            //     { "CCC:".blue() },
+            //     { main_clock.absolute_timer.elapsed_secs() },
+            //     { play_pos.unwrap() }
+            // );
         }
     } else {
         main_clock.move_clouds = false;
@@ -278,12 +289,88 @@ fn tick_timers(
             main_clock.move_player = false;
         }
     }
+}
 
-    /* ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ Cooldown Timers ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ */
-    for (mut timer, mut status) in query.iter_mut() {
+// mut query: Query<(&mut CooldownTimer, &mut IsCooldown), With<Cloud>>,
+#[allow(clippy::type_complexity)]
+fn reset_cooldown_timers(
+    mut grid_state: ResMut<GridState>,
+    time: Res<Time>,
+    mut left_query: Query<
+        (&mut CooldownTimer, &mut GridPos, &mut IsCooldown),
+        (
+            With<LeftCloud>,
+            Without<RightCloud>,
+            Without<UpCloud>,
+            Without<DownCloud>,
+        ),
+    >,
+    mut right_query: Query<
+        (&mut CooldownTimer, &mut GridPos, &mut IsCooldown),
+        (
+            With<RightCloud>,
+            Without<LeftCloud>,
+            Without<UpCloud>,
+            Without<DownCloud>,
+        ),
+    >,
+    mut up_query: Query<
+        (&mut CooldownTimer, &mut GridPos, &mut IsCooldown),
+        (
+            With<UpCloud>,
+            Without<RightCloud>,
+            Without<LeftCloud>,
+            Without<DownCloud>,
+        ),
+    >,
+    mut down_query: Query<
+        (&mut CooldownTimer, &mut GridPos, &mut IsCooldown),
+        (
+            With<DownCloud>,
+            Without<RightCloud>,
+            Without<UpCloud>,
+            Without<LeftCloud>,
+        ),
+    >,
+) {
+    for (mut timer, grid_pos, mut status) in left_query.iter_mut() {
         timer.tick(time.delta());
         if timer.finished() {
+            // grid_pos.status.val = false;
+            let pos = grid_pos.pos;
+            grid_state.grid[pos[0] as usize][pos[1] as usize] = TileOccupation::LeftCloud;
             status.val = false;
+            timer.reset();
+        }
+    }
+    for (mut timer, grid_pos, mut status) in right_query.iter_mut() {
+        timer.tick(time.delta());
+        if timer.finished() {
+            // grid_pos.status.val = false;
+            let pos = grid_pos.pos;
+            grid_state.grid[pos[0] as usize][pos[1] as usize] = TileOccupation::RightCloud;
+            status.val = false;
+            timer.reset();
+        }
+    }
+    for (mut timer, grid_pos, mut status) in up_query.iter_mut() {
+        timer.tick(time.delta());
+        if timer.finished() {
+            // grid_pos.status.val = false;
+            let pos = grid_pos.pos;
+            grid_state.grid[pos[0] as usize][pos[1] as usize] = TileOccupation::UpCloud;
+            status.val = false;
+            timer.reset();
+        }
+    }
+    for (mut timer, grid_pos, mut status) in down_query.iter_mut() {
+        timer.tick(time.delta());
+        if timer.finished() {
+            // grid_pos.status.val = false;
+            let pos = grid_pos.pos;
+            grid_state.grid[pos[0] as usize][pos[1] as usize] = TileOccupation::DownCloud;
+            status.val = false;
+            timer.reset();
         }
     }
 }
@@ -342,7 +429,8 @@ impl GridState {
     }
 
     /// Check whether the next tile is occupied. Here the function is called on
-    /// the tile N+1 such that we check the tile N+2
+    /// the tile N+1 such that we check the tile N+2. Therefore we need the
+    /// tile being pushed and the direction in which the push is done:
     pub fn is_occupied(&self, tile: [i8; 2], dir: CloudDir, object: TileOccupation) -> PushState {
         if self.is_out_of_range(tile) {
             return PushState::Despawn;
@@ -403,6 +491,11 @@ impl GridState {
         if tile_np2_occupied {
             PushState::Blocked
         } else {
+            // Case where the cloud is cooling down:
+            if matches!(target_tile_occ, TileOccupation::CooldownCloud) {
+                return PushState::Blocked;
+            }
+
             // case where the tile behind is empty, it depends on the target
             // tile
             match dir {
@@ -969,11 +1062,11 @@ fn push_clouds(
             continue;
         }
 
+        // Then push the clouds:
         for (cloud, mut cloud_pos, entity, mut is_cooling) in query.iter_mut() {
             if cloud_pos.pos == pos {
                 // If cloud to be pushed out of the board, despawn it instantly:
                 if push_type == PushState::PushOver {
-                    // TODO: check that it actuall works:
                     commands.entity(entity).despawn();
                     grid_state.grid[cloud_pos.pos[0] as usize][cloud_pos.pos[1] as usize] =
                         TileOccupation::Empty;
@@ -988,11 +1081,15 @@ fn push_clouds(
                         grid_state.move_on_grid(
                             cloud_pos.pos,
                             [cloud_pos.pos[0], cloud_pos.pos[1] - 1i8],
-                            match cloud.dir {
-                                CloudDir::Down => TileOccupation::DownCloud,
-                                CloudDir::Up => TileOccupation::UpCloud,
-                                CloudDir::Left => TileOccupation::LeftCloud,
-                                CloudDir::Right => TileOccupation::RightCloud,
+                            if push_type == PushState::CanPushPlayer {
+                                TileOccupation::CooldownCloud
+                            } else {
+                                match cloud.dir {
+                                    CloudDir::Down => TileOccupation::DownCloud,
+                                    CloudDir::Up => TileOccupation::UpCloud,
+                                    CloudDir::Left => TileOccupation::LeftCloud,
+                                    CloudDir::Right => TileOccupation::RightCloud,
+                                }
                             },
                         );
                         cloud_pos.pos[1] += -1i8;
@@ -1004,11 +1101,15 @@ fn push_clouds(
                         grid_state.move_on_grid(
                             cloud_pos.pos,
                             [cloud_pos.pos[0] - 1i8, cloud_pos.pos[1]],
-                            match cloud.dir {
-                                CloudDir::Down => TileOccupation::DownCloud,
-                                CloudDir::Up => TileOccupation::UpCloud,
-                                CloudDir::Left => TileOccupation::LeftCloud,
-                                CloudDir::Right => TileOccupation::RightCloud,
+                            if push_type == PushState::CanPushPlayer {
+                                TileOccupation::CooldownCloud
+                            } else {
+                                match cloud.dir {
+                                    CloudDir::Down => TileOccupation::DownCloud,
+                                    CloudDir::Up => TileOccupation::UpCloud,
+                                    CloudDir::Left => TileOccupation::LeftCloud,
+                                    CloudDir::Right => TileOccupation::RightCloud,
+                                }
                             },
                         );
                         cloud_pos.pos[0] += -1i8;
@@ -1020,11 +1121,15 @@ fn push_clouds(
                         grid_state.move_on_grid(
                             cloud_pos.pos,
                             [cloud_pos.pos[0] + 1i8, cloud_pos.pos[1]],
-                            match cloud.dir {
-                                CloudDir::Down => TileOccupation::DownCloud,
-                                CloudDir::Up => TileOccupation::UpCloud,
-                                CloudDir::Left => TileOccupation::LeftCloud,
-                                CloudDir::Right => TileOccupation::RightCloud,
+                            if push_type == PushState::CanPushPlayer {
+                                TileOccupation::CooldownCloud
+                            } else {
+                                match cloud.dir {
+                                    CloudDir::Down => TileOccupation::DownCloud,
+                                    CloudDir::Up => TileOccupation::UpCloud,
+                                    CloudDir::Left => TileOccupation::LeftCloud,
+                                    CloudDir::Right => TileOccupation::RightCloud,
+                                }
                             },
                         );
                         cloud_pos.pos[0] += 1i8;
@@ -1036,11 +1141,15 @@ fn push_clouds(
                         grid_state.move_on_grid(
                             cloud_pos.pos,
                             [cloud_pos.pos[0], cloud_pos.pos[1] + 1i8],
-                            match cloud.dir {
-                                CloudDir::Down => TileOccupation::DownCloud,
-                                CloudDir::Up => TileOccupation::UpCloud,
-                                CloudDir::Left => TileOccupation::LeftCloud,
-                                CloudDir::Right => TileOccupation::RightCloud,
+                            if push_type == PushState::CanPushPlayer {
+                                TileOccupation::CooldownCloud
+                            } else {
+                                match cloud.dir {
+                                    CloudDir::Down => TileOccupation::DownCloud,
+                                    CloudDir::Up => TileOccupation::UpCloud,
+                                    CloudDir::Left => TileOccupation::LeftCloud,
+                                    CloudDir::Right => TileOccupation::RightCloud,
+                                }
                             },
                         );
                         cloud_pos.pos[1] += 1i8;
