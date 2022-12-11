@@ -3,13 +3,14 @@
 use std::time::Duration;
 
 use crate::actions::{Actions, GameControl};
+use crate::audio::{InstanceHandle, SONG_1, SONG_2};
 use crate::clouds;
 use crate::clouds::{
     Cloud, CloudDir, CooldownTimer, DownCloud, GridPos, IsCooldown, LeftCloud, RightCloud, UpCloud,
     CLOUD_LAYER,
 };
 
-use crate::loading::TextureAssets;
+use crate::loading::{AudioAssets, TextureAssets};
 use crate::player::{
     fill_player_buffer, pop_player_buffer, Player, PlayerControl, INIT_POS, TILE_SIZE,
 };
@@ -17,13 +18,14 @@ use crate::ui::MessBar;
 use crate::world::{LEVEL_SIZE, STAGE_BL, STAGE_UR, STAGE_WIDTH};
 use crate::GameState;
 use bevy::prelude::*;
+use bevy_kira_audio::prelude::*;
 // use bevy::render::texture::ImageSettings;
 use colored::*;
 use iyes_loopless::prelude::*;
 use rand::seq::SliceRandom;
 
 pub const MAX_BUFFER_INPUT: usize = 2;
-pub const MAIN_PERIOD: f32 = 0.150;
+// pub const MAIN_PERIOD: f32 = 0.150;
 // Multiple of the move timer:
 pub const SPAWN_FREQUENCY: u8 = 3;
 // Offset for delaying cloud spawning depending on the direction:
@@ -132,7 +134,8 @@ struct AnimationTimer(Timer);
 #[derive(Default, Resource)]
 pub struct MainClock {
     pub main_timer: Timer,
-    pub time_correction: f32,
+    pub absolute_timer: Timer,
+    pub intro_finished: bool,
     pub excess_time: f32,
     player_to_cloud_ratio: f32,
     pub move_player: bool,
@@ -145,49 +148,96 @@ fn tick_timers(
     mut main_clock: ResMut<MainClock>,
     time: Res<Time>,
     mut query: Query<(&mut CooldownTimer, &mut IsCooldown), With<Cloud>>,
+    mut audio_instances: ResMut<Assets<AudioInstance>>,
+    handle: Res<InstanceHandle>,
+    audio_assets: Res<AudioAssets>,
 ) {
-    /* ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ Global timers to sync with the music ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ */
-    // The correction is positive if the game logic is late, negative
-    // if in advance:
-    let corr = main_clock.time_correction;
-    let corrected_dur = if corr >= 0. {
-        time.delta() + Duration::from_secs_f32(corr)
-    } else {
-        // Let's not go faser tan the music:
-        Duration::from_secs_f32(0.)
+    /* ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ Constants ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ */
+    let beat_length = match audio_assets.selected_song {
+        crate::audio::SelectedSong::Song1 => SONG_1.beat_length,
+        crate::audio::SelectedSong::Song2 => SONG_2.beat_length,
     };
-    // remove some of the correction:
-    main_clock.time_correction = corr * (1. - corrected_dur.as_secs_f32());
-    // println!(
-    //     "{} {} {:?} {:?}",
-    //     { "➤".blue() },
-    //     { "AAA:".blue() },
-    //     { corrected_dur },
-    //     { time.delta() }
-    // );
-    // main_clock.main_timer.tick(corrected_dur);
-    main_clock.main_timer.tick(time.delta());
+    let song_length = match audio_assets.selected_song {
+        crate::audio::SelectedSong::Song1 => SONG_1.length,
+        crate::audio::SelectedSong::Song2 => SONG_2.length,
+    };
+    let intro_length = match audio_assets.selected_song {
+        crate::audio::SelectedSong::Song1 => SONG_1.intro_length,
+        crate::audio::SelectedSong::Song2 => SONG_2.intro_length,
+    };
+    /* ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ Retrieve the audio timing ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ */
+    let play_pos = if audio_instances.get_mut(&handle.handle).is_some() {
+        audio_instances.state(&handle.handle).position()
+    } else {
+        None
+    };
 
-    // if main_clock.time_correction.abs() > 0. && main_clock.time_correction > time.delta_seconds() {
-    //     // it's positive, meaning that the clock is behind the audio
-    //     // then we compensate the clock:
-    //     println!("{} {} {:?}", {"➤".blue()}, {"AAA:".blue()}, {});
-    //     let corr = main_clock.time_correction;
-    //     main_clock
-    //         .main_timer
-    //         .tick(time.delta() + Duration::from_secs_f32(corr));
-    // } else {
-    //     // The audio is behind, wait for it:
-    //     {}
-    // }
+    /* ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ Tick the global clock ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ */
+    let tick_time: f32;
+    match main_clock.excess_time {
+        x if x.abs() <= time.delta_seconds() => {
+            tick_time = time.delta_seconds() + x;
+            main_clock.excess_time = 0.;
+        }
+        x if x > 0. && x.abs() > time.delta_seconds() => {
+            tick_time = time.delta_seconds() + x;
+            main_clock.excess_time = 0.;
+        }
+        x if x < 0. && x.abs() > time.delta_seconds() => {
+            // This is negative, we clip it a 0:
+            tick_time = 0.;
+            main_clock.excess_time = time.delta_seconds() + x;
+        }
+        _ => panic!(),
+    }
+    println!(
+        "{} {} {:?} {:?}",
+        { "➤".blue() },
+        { "BBB:".blue() },
+        { tick_time },
+        { main_clock.excess_time }
+    );
+    main_clock
+        .main_timer
+        .tick(Duration::from_secs_f32(tick_time));
+    main_clock
+        .absolute_timer
+        .tick(Duration::from_secs_f32(tick_time));
+    let current_abs_time = main_clock.absolute_timer.elapsed_secs();
+
+    // Remove the intro after the first loop:
+    if main_clock.absolute_timer.just_finished() && !main_clock.intro_finished {
+        main_clock
+            .absolute_timer
+            .set_duration(Duration::from_secs_f32(song_length));
+        main_clock.intro_finished = true;
+    }
 
     if main_clock.main_timer.just_finished() {
+        /* ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ Resync audio ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ */
+        // The correction is positive if the game logic is late, negative
+        // if in advance:
+        // let mut audio_sync: f64 = 0.;
+        if let Some(play_pos) = play_pos {
+            let audio_sync = play_pos - current_abs_time as f64;
+            main_clock.excess_time = audio_sync as f32;
+            println!("{} {} {:?}", { "➤".blue() }, { "AAA:".blue() }, {
+                audio_sync
+            });
+        }
+        /* ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ Execute logic ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ */
         main_clock.cloud_counter += 1;
         main_clock.move_player = true;
         if main_clock.cloud_counter >= TIMER_SCALE_FACTOR {
-            main_clock.excess_time = time.delta_seconds();
             main_clock.move_clouds = true;
             main_clock.cloud_counter = 0;
+            println!(
+                "{} {} {:?} {:?}",
+                { "➤".blue() },
+                { "CCC:".blue() },
+                { main_clock.absolute_timer.elapsed_secs() },
+                { play_pos }
+            );
         }
     } else {
         main_clock.move_clouds = false;
@@ -197,6 +247,7 @@ fn tick_timers(
             main_clock.move_player = false;
         }
     }
+
     /* ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ Cooldown Timers ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ */
     for (mut timer, mut status) in query.iter_mut() {
         timer.tick(time.delta());
@@ -1063,18 +1114,39 @@ fn set_cloud_direction(mut cloud_control: ResMut<CloudControl>, main_clock: Res<
     }
 }
 
-fn set_up_logic(mut commands: Commands) {
-    // Create our game rules resource
+fn set_up_logic(mut commands: Commands, audio_assets: Res<AudioAssets>) {
+    /* ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ Constants ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ */
+    let beat_length = match audio_assets.selected_song {
+        crate::audio::SelectedSong::Song1 => SONG_1.beat_length,
+        crate::audio::SelectedSong::Song2 => SONG_2.beat_length,
+    };
+    let song_length = match audio_assets.selected_song {
+        crate::audio::SelectedSong::Song1 => SONG_1.length,
+        crate::audio::SelectedSong::Song2 => SONG_2.length,
+    };
+    let intro_length = match audio_assets.selected_song {
+        crate::audio::SelectedSong::Song1 => SONG_1.intro_length,
+        crate::audio::SelectedSong::Song2 => SONG_2.intro_length,
+    };
+    /* ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ Create our game rules resource ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ */
     commands.insert_resource(PlayerControl {
         player_pos: INIT_POS,
         input_buffer: [GameControl::Idle; MAX_BUFFER_INPUT],
-        timer: Timer::from_seconds(MAIN_PERIOD, TimerMode::Repeating),
+        timer: Timer::from_seconds(
+            beat_length / TIMER_SCALE_FACTOR as f32,
+            TimerMode::Repeating,
+        ),
     });
     commands.insert_resource(GridState::default());
     commands.insert_resource(MainClock {
-        main_timer: Timer::from_seconds(MAIN_PERIOD, TimerMode::Repeating),
+        main_timer: Timer::from_seconds(
+            beat_length / TIMER_SCALE_FACTOR as f32,
+            TimerMode::Repeating,
+        ),
+        absolute_timer: Timer::from_seconds(song_length + intro_length, TimerMode::Repeating),
         player_to_cloud_ratio: TIMER_SCALE_FACTOR as f32,
         forgiveness_margin: FORGIVENESS_MARGIN,
+        intro_finished: false,
         ..Default::default()
     });
     commands.insert_resource(CloudControl {
