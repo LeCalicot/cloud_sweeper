@@ -14,6 +14,11 @@ use cloud_sweeper::GamePlugin;
 use std::io::Cursor;
 use winit::window::Icon;
 
+// WIP: use the song info to set the frequency and compensate the drift
+// express the cooldown in terms of beats. Make the cooldown longer (makes it harder)
+
+// TODO: check for drift and compensate
+// TODO: lock the cloud after → force to follow the beat! Sample on moving the cloud!
 // TODO: use keep pressing → + space to turn all adjacent clouds inward to unlock some situations. Must be aligned with the beat
 // IDEA: add item spawing to accelerate the speed, add clouds, destroy clouds, revert everything
 // TODO: add music
