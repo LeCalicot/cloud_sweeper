@@ -61,15 +61,15 @@ impl Plugin for LogicPlugin {
                     .with_system(set_cloud_direction)
                     .into(),
             )
-            .add_system_set(
-                ConditionSet::new()
-                    .run_in_state(GameState::Playing)
-                    .label("reset_cooldown_timers")
-                    .after("tick_clock")
-                    .before("move_clouds")
-                    .with_system(reset_cooldown_timers)
-                    .into(),
-            )
+            // .add_system_set(
+            //     ConditionSet::new()
+            //         .run_in_state(GameState::Playing)
+            //         .label("reset_cooldown_timers")
+            //         .after("tick_clock")
+            //         .before("move_clouds")
+            //         // .with_system(reset_cooldown_timers)
+            //         .into(),
+            // )
             .add_system_set(
                 ConditionSet::new()
                     .run_in_state(GameState::Playing)
@@ -778,8 +778,9 @@ fn grid_to_vec(grid_pos: [i8; 2]) -> Vec3 {
 fn move_clouds(
     mut cloud_control: ResMut<CloudControl>,
     mut grid_state: ResMut<GridState>,
+    asset_server: Res<AssetServer>,
     mut left_query: Query<
-        (&mut GridPos, &IsCooldown),
+        (&mut GridPos, &mut IsCooldown, &mut Handle<Image>),
         (
             With<LeftCloud>,
             Without<RightCloud>,
@@ -788,7 +789,7 @@ fn move_clouds(
         ),
     >,
     mut right_query: Query<
-        (&mut GridPos, &IsCooldown),
+        (&mut GridPos, &mut IsCooldown, &mut Handle<Image>),
         (
             With<RightCloud>,
             Without<LeftCloud>,
@@ -797,7 +798,7 @@ fn move_clouds(
         ),
     >,
     mut up_query: Query<
-        (&mut GridPos, &IsCooldown),
+        (&mut GridPos, &mut IsCooldown, &mut Handle<Image>),
         (
             With<UpCloud>,
             Without<RightCloud>,
@@ -806,7 +807,7 @@ fn move_clouds(
         ),
     >,
     mut down_query: Query<
-        (&mut GridPos, &IsCooldown),
+        (&mut GridPos, &mut IsCooldown, &mut Handle<Image>),
         (
             With<DownCloud>,
             Without<RightCloud>,
@@ -823,9 +824,10 @@ fn move_clouds(
 
     match cloud_dir {
         CloudDir::Down => {
-            for (mut cloud_pos, is_cooling) in down_query.iter_mut() {
+            for (mut cloud_pos, mut is_cooling, mut texture) in down_query.iter_mut() {
                 if is_cooling.val {
-                    continue;
+                    *texture = asset_server.load("textures/down_cloud.png");
+                    is_cooling.val = false;
                 }
                 let next_tile_push = grid_state.is_occupied(
                     [cloud_pos.pos[0], cloud_pos.pos[1] - 1i8],
@@ -875,9 +877,10 @@ fn move_clouds(
             }
         }
         CloudDir::Left => {
-            for (mut cloud_pos, is_cooling) in left_query.iter_mut() {
+            for (mut cloud_pos, mut is_cooling, mut texture) in left_query.iter_mut() {
                 if is_cooling.val {
-                    continue;
+                    *texture = asset_server.load("textures/left_cloud.png");
+                    is_cooling.val = false;
                 }
                 let next_tile_push = grid_state.is_occupied(
                     [cloud_pos.pos[0] - 1i8, cloud_pos.pos[1]],
@@ -926,9 +929,10 @@ fn move_clouds(
             }
         }
         CloudDir::Up => {
-            for (mut cloud_pos, is_cooling) in up_query.iter_mut() {
+            for (mut cloud_pos, mut is_cooling, mut texture) in up_query.iter_mut() {
                 if is_cooling.val {
-                    continue;
+                    *texture = asset_server.load("textures/up_cloud.png");
+                    is_cooling.val = false;
                 }
                 let next_tile_push = grid_state.is_occupied(
                     [cloud_pos.pos[0], cloud_pos.pos[1] + 1i8],
@@ -977,9 +981,10 @@ fn move_clouds(
             }
         }
         CloudDir::Right => {
-            for (mut cloud_pos, is_cooling) in right_query.iter_mut() {
+            for (mut cloud_pos, mut is_cooling, mut texture) in right_query.iter_mut() {
                 if is_cooling.val {
-                    continue;
+                    *texture = asset_server.load("textures/right_cloud.png");
+                    is_cooling.val = false;
                 }
                 let next_tile_push = grid_state.is_occupied(
                     [cloud_pos.pos[0] + 1i8, cloud_pos.pos[1]],
