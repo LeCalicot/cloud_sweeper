@@ -40,7 +40,7 @@ const SEQUENCE: [CloudDir; 4] = [
 ];
 
 // The push cooldwn is a multiple of the main clock:
-pub const PUSH_COOLDOWN_FACTOR: f32 = 2.;
+pub const PUSH_COOLDOWN_FACTOR: f32 = 4.;
 pub const CLOUD_COUNT_LOSE_COND: usize = 16;
 // How late after the beat the player can be and still move:
 pub const FORGIVENESS_MARGIN: f32 = 0.050;
@@ -294,10 +294,16 @@ fn tick_timers(
 // mut query: Query<(&mut CooldownTimer, &mut IsCooldown), With<Cloud>>,
 #[allow(clippy::type_complexity)]
 fn reset_cooldown_timers(
+    asset_server: Res<AssetServer>,
     mut grid_state: ResMut<GridState>,
     time: Res<Time>,
     mut left_query: Query<
-        (&mut CooldownTimer, &mut GridPos, &mut IsCooldown),
+        (
+            &mut CooldownTimer,
+            &mut GridPos,
+            &mut IsCooldown,
+            &mut Handle<Image>,
+        ),
         (
             With<LeftCloud>,
             Without<RightCloud>,
@@ -306,7 +312,12 @@ fn reset_cooldown_timers(
         ),
     >,
     mut right_query: Query<
-        (&mut CooldownTimer, &mut GridPos, &mut IsCooldown),
+        (
+            &mut CooldownTimer,
+            &mut GridPos,
+            &mut IsCooldown,
+            &mut Handle<Image>,
+        ),
         (
             With<RightCloud>,
             Without<LeftCloud>,
@@ -315,7 +326,12 @@ fn reset_cooldown_timers(
         ),
     >,
     mut up_query: Query<
-        (&mut CooldownTimer, &mut GridPos, &mut IsCooldown),
+        (
+            &mut CooldownTimer,
+            &mut GridPos,
+            &mut IsCooldown,
+            &mut Handle<Image>,
+        ),
         (
             With<UpCloud>,
             Without<RightCloud>,
@@ -324,7 +340,12 @@ fn reset_cooldown_timers(
         ),
     >,
     mut down_query: Query<
-        (&mut CooldownTimer, &mut GridPos, &mut IsCooldown),
+        (
+            &mut CooldownTimer,
+            &mut GridPos,
+            &mut IsCooldown,
+            &mut Handle<Image>,
+        ),
         (
             With<DownCloud>,
             Without<RightCloud>,
@@ -333,37 +354,40 @@ fn reset_cooldown_timers(
         ),
     >,
 ) {
-    for (mut timer, grid_pos, mut status) in left_query.iter_mut() {
+    for (mut timer, grid_pos, mut status, mut texture) in left_query.iter_mut() {
         timer.tick(time.delta());
         if timer.finished() {
             // grid_pos.status.val = false;
             let pos = grid_pos.pos;
             grid_state.grid[pos[0] as usize][pos[1] as usize] = TileOccupation::LeftCloud;
+            *texture = asset_server.load("textures/left_cloud.png");
             status.val = false;
             timer.reset();
         }
     }
-    for (mut timer, grid_pos, mut status) in right_query.iter_mut() {
+    for (mut timer, grid_pos, mut status, mut texture) in right_query.iter_mut() {
         timer.tick(time.delta());
         if timer.finished() {
             // grid_pos.status.val = false;
             let pos = grid_pos.pos;
             grid_state.grid[pos[0] as usize][pos[1] as usize] = TileOccupation::RightCloud;
+            *texture = asset_server.load("textures/right_cloud.png");
             status.val = false;
             timer.reset();
         }
     }
-    for (mut timer, grid_pos, mut status) in up_query.iter_mut() {
+    for (mut timer, grid_pos, mut status, mut texture) in up_query.iter_mut() {
         timer.tick(time.delta());
         if timer.finished() {
             // grid_pos.status.val = false;
             let pos = grid_pos.pos;
             grid_state.grid[pos[0] as usize][pos[1] as usize] = TileOccupation::UpCloud;
             status.val = false;
+            *texture = asset_server.load("textures/up_cloud.png");
             timer.reset();
         }
     }
-    for (mut timer, grid_pos, mut status) in down_query.iter_mut() {
+    for (mut timer, grid_pos, mut status, mut texture) in down_query.iter_mut() {
         timer.tick(time.delta());
         if timer.finished() {
             // grid_pos.status.val = false;
@@ -371,6 +395,7 @@ fn reset_cooldown_timers(
             grid_state.grid[pos[0] as usize][pos[1] as usize] = TileOccupation::DownCloud;
             status.val = false;
             timer.reset();
+            *texture = asset_server.load("textures/down_cloud.png");
         }
     }
 }
@@ -1014,8 +1039,15 @@ fn push_clouds(
     mut cloud_control: ResMut<CloudControl>,
     mut player_control: ResMut<PlayerControl>,
     mut grid_state: ResMut<GridState>,
+    asset_server: Res<AssetServer>,
     mut query: Query<
-        (&Cloud, &mut GridPos, Entity, &mut IsCooldown),
+        (
+            &Cloud,
+            &mut GridPos,
+            Entity,
+            &mut IsCooldown,
+            &mut Handle<Image>,
+        ),
         (
             Or<(
                 With<LeftCloud>,
@@ -1063,7 +1095,7 @@ fn push_clouds(
         }
 
         // Then push the clouds:
-        for (cloud, mut cloud_pos, entity, mut is_cooling) in query.iter_mut() {
+        for (cloud, mut cloud_pos, entity, mut is_cooling, mut texture) in query.iter_mut() {
             if cloud_pos.pos == pos {
                 // If cloud to be pushed out of the board, despawn it instantly:
                 if push_type == PushState::PushOver {
@@ -1076,6 +1108,20 @@ fn push_clouds(
                 match dir {
                     CloudDir::Down => {
                         if push_type == PushState::CanPushPlayer {
+                            match cloud.dir {
+                                CloudDir::Up => {
+                                    *texture = asset_server.load("textures/up_cooldown.png")
+                                }
+                                CloudDir::Down => {
+                                    *texture = asset_server.load("textures/down_cooldown.png")
+                                }
+                                CloudDir::Left => {
+                                    *texture = asset_server.load("textures/left_cooldown.png")
+                                }
+                                CloudDir::Right => {
+                                    *texture = asset_server.load("textures/right_cooldown.png")
+                                }
+                            }
                             is_cooling.val = true;
                         }
                         grid_state.move_on_grid(
@@ -1096,6 +1142,20 @@ fn push_clouds(
                     }
                     CloudDir::Left => {
                         if push_type == PushState::CanPushPlayer {
+                            match cloud.dir {
+                                CloudDir::Up => {
+                                    *texture = asset_server.load("textures/up_cooldown.png")
+                                }
+                                CloudDir::Down => {
+                                    *texture = asset_server.load("textures/down_cooldown.png")
+                                }
+                                CloudDir::Left => {
+                                    *texture = asset_server.load("textures/left_cooldown.png")
+                                }
+                                CloudDir::Right => {
+                                    *texture = asset_server.load("textures/right_cooldown.png")
+                                }
+                            }
                             is_cooling.val = true;
                         }
                         grid_state.move_on_grid(
@@ -1116,6 +1176,20 @@ fn push_clouds(
                     }
                     CloudDir::Right => {
                         if push_type == PushState::CanPushPlayer {
+                            match cloud.dir {
+                                CloudDir::Up => {
+                                    *texture = asset_server.load("textures/up_cooldown.png")
+                                }
+                                CloudDir::Down => {
+                                    *texture = asset_server.load("textures/down_cooldown.png")
+                                }
+                                CloudDir::Left => {
+                                    *texture = asset_server.load("textures/left_cooldown.png")
+                                }
+                                CloudDir::Right => {
+                                    *texture = asset_server.load("textures/right_cooldown.png")
+                                }
+                            }
                             is_cooling.val = true;
                         }
                         grid_state.move_on_grid(
@@ -1136,6 +1210,20 @@ fn push_clouds(
                     }
                     CloudDir::Up => {
                         if push_type == PushState::CanPushPlayer {
+                            match cloud.dir {
+                                CloudDir::Up => {
+                                    *texture = asset_server.load("textures/up_cooldown.png")
+                                }
+                                CloudDir::Down => {
+                                    *texture = asset_server.load("textures/down_cooldown.png")
+                                }
+                                CloudDir::Left => {
+                                    *texture = asset_server.load("textures/left_cooldown.png")
+                                }
+                                CloudDir::Right => {
+                                    *texture = asset_server.load("textures/right_cooldown.png")
+                                }
+                            }
                             is_cooling.val = true;
                         }
                         grid_state.move_on_grid(
@@ -1196,7 +1284,7 @@ fn push_clouds(
             continue;
         }
 
-        for (_, mut cloud_pos, _, _) in query.iter_mut() {
+        for (_, mut cloud_pos, _, _, _) in query.iter_mut() {
             if cloud_pos.pos == pos {
                 match dir {
                     CloudDir::Down => {
