@@ -8,6 +8,7 @@ use crate::world::{STAGE_BL, STAGE_UR};
 use crate::GameState;
 use bevy::prelude::*;
 // use bevy::render::texture::ImageSettings;
+use colored::*;
 use iyes_loopless::prelude::*;
 
 pub const TILE_SIZE: f32 = 16.;
@@ -153,8 +154,6 @@ pub fn pop_player_buffer(
         player_control.input_buffer[0] = GameControl::Idle;
         player_control.input_buffer.rotate_left(1);
 
-        // let mut action_direction = CloudDir::Down;
-
         let (player_new_pos, action_direction, push_state): ([i8; 2], CloudDir, PushState) =
             match player_action {
                 GameControl::Down => {
@@ -221,12 +220,13 @@ pub fn pop_player_buffer(
                         grid_state.is_occupied(new_pos, dir, TileOccupation::Player),
                     )
                 }
-                GameControl::Idle => (
-                    player_control.player_pos,
-                    CloudDir::Right,
-                    PushState::Blocked,
-                ),
+                GameControl::Idle => (player_control.player_pos, CloudDir::Right, PushState::Empty),
             };
+        if push_state != PushState::Empty {
+            println!("{} {} {:?}", { "➤".blue() }, { "AAA:".blue() }, {
+                push_state
+            });
+        };
         let player_old_pos = player_control.player_pos;
 
         if player_action != GameControl::Idle {

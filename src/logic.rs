@@ -416,6 +416,7 @@ impl GridState {
         // To do before checking whether the cell is empty since we detect sky
         // tiles as empty
         if object == TileOccupation::Player && self.is_sky(tile) {
+            println!("{} {} {:?}", { "➤".blue() }, { "BBB sky".blue() }, {});
             return PushState::Blocked;
         }
 
@@ -465,10 +466,21 @@ impl GridState {
 
         // Case where there is something behind, just forget it
         if tile_np2_occupied {
+            if object == TileOccupation::Player {
+                println!("{} {} {:?}", { "➤".blue() }, { "CCC:".blue() }, {});
+            };
             PushState::Blocked
         } else {
             // Case where the cloud is cooling down:
             if matches!(target_tile_occ, TileOccupation::CooldownCloud) {
+                if object == TileOccupation::Player {
+                    println!(
+                        "{} {} {:?}",
+                        { "➤".blue() },
+                        { "DDD cloud cooldown:".blue() },
+                        {}
+                    );
+                };
                 return PushState::Blocked;
             }
 
@@ -641,16 +653,16 @@ fn check_lose_condition(
     ];
     let mut is_blocked = [false, false, false, false];
 
-    for (i, tile) in next_tiles.into_iter().enumerate() {
-        is_blocked[i] = matches!(
-            grid_state.is_occupied(tile, SEQUENCE[i], TileOccupation::Player),
-            PushState::Blocked
-        );
-        let has_lost = is_blocked.into_iter().all(|x| x);
-        if has_lost {
-            commands.insert_resource(NextState(GameState::GameOver))
-        }
-    }
+    // for (i, tile) in next_tiles.into_iter().enumerate() {
+    //     is_blocked[i] = matches!(
+    //         grid_state.is_occupied(tile, SEQUENCE[i], TileOccupation::Player),
+    //         PushState::Blocked
+    //     );
+    //     let has_lost = is_blocked.into_iter().all(|x| x);
+    //     if has_lost {
+    //         commands.insert_resource(NextState(GameState::GameOver))
+    //     }
+    // }
 }
 
 fn count_clouds(grid_state: Res<GridState>, mut query: Query<&mut MessBar>) {
@@ -697,7 +709,7 @@ fn dir_index(cloud_dir: CloudDir) -> usize {
     SEQUENCE.iter().position(|&x| x == cloud_dir).unwrap()
 }
 
-/// Transform a cloud direcion into a TileOccupatio enum
+/// Transform a cloud direction into a TileOccupation enum
 fn dir_to_tile(dir: CloudDir) -> TileOccupation {
     match dir {
         CloudDir::Down => TileOccupation::DownCloud,
@@ -779,6 +791,8 @@ fn move_clouds(
                 if is_cooling.val {
                     *texture = asset_server.load("textures/down_cloud.png");
                     is_cooling.val = false;
+                    let pos = cloud_pos.pos;
+                    grid_state.grid[pos[0] as usize][pos[1] as usize] = TileOccupation::DownCloud;
                 }
                 let next_tile_push = grid_state.is_occupied(
                     [cloud_pos.pos[0], cloud_pos.pos[1] - 1i8],
@@ -832,6 +846,8 @@ fn move_clouds(
                 if is_cooling.val {
                     *texture = asset_server.load("textures/left_cloud.png");
                     is_cooling.val = false;
+                    let pos = cloud_pos.pos;
+                    grid_state.grid[pos[0] as usize][pos[1] as usize] = TileOccupation::LeftCloud;
                 }
                 let next_tile_push = grid_state.is_occupied(
                     [cloud_pos.pos[0] - 1i8, cloud_pos.pos[1]],
@@ -884,6 +900,8 @@ fn move_clouds(
                 if is_cooling.val {
                     *texture = asset_server.load("textures/up_cloud.png");
                     is_cooling.val = false;
+                    let pos = cloud_pos.pos;
+                    grid_state.grid[pos[0] as usize][pos[1] as usize] = TileOccupation::UpCloud;
                 }
                 let next_tile_push = grid_state.is_occupied(
                     [cloud_pos.pos[0], cloud_pos.pos[1] + 1i8],
@@ -936,6 +954,8 @@ fn move_clouds(
                 if is_cooling.val {
                     *texture = asset_server.load("textures/right_cloud.png");
                     is_cooling.val = false;
+                    let pos = cloud_pos.pos;
+                    grid_state.grid[pos[0] as usize][pos[1] as usize] = TileOccupation::RightCloud;
                 }
                 let next_tile_push = grid_state.is_occupied(
                     [cloud_pos.pos[0] + 1i8, cloud_pos.pos[1]],
@@ -1330,7 +1350,6 @@ fn set_up_logic(mut commands: Commands, audio_assets: Res<AudioAssets>) {
         absolute_timer: Timer::from_seconds(song_length + intro_length, TimerMode::Repeating),
         player_to_cloud_ratio: TIMER_SCALE_FACTOR as f32,
         forgiveness_margin: FORGIVENESS_MARGIN,
-        // intro_finished: false,
         ..Default::default()
     });
     commands.insert_resource(CloudControl {

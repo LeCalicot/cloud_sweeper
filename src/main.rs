@@ -14,7 +14,8 @@ use cloud_sweeper::GamePlugin;
 use std::io::Cursor;
 use winit::window::Icon;
 
-// WIP: cleanup code (reset timers)
+// WIP: debug. Sometimes the clouds stay in a cooldown state -> the method reset_cooldown_timers
+// is never called. Not sure how the grid is reset.
 
 // TODO: use keep pressing → + space to turn all adjacent clouds inward to unlock some situations. Must be aligned with the beat
 // TODO: limit the player buffer to 2 moves per 2 beats?
