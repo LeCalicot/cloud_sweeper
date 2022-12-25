@@ -61,15 +61,6 @@ impl Plugin for LogicPlugin {
                     .with_system(set_cloud_direction)
                     .into(),
             )
-            // .add_system_set(
-            //     ConditionSet::new()
-            //         .run_in_state(GameState::Playing)
-            //         .label("reset_cooldown_timers")
-            //         .after("tick_clock")
-            //         .before("move_clouds")
-            //         // .with_system(reset_cooldown_timers)
-            //         .into(),
-            // )
             .add_system_set(
                 ConditionSet::new()
                     .run_in_state(GameState::Playing)
@@ -203,13 +194,7 @@ fn tick_timers(
         }
         _ => panic!(),
     }
-    // println!(
-    //     "{} {} {:?} {:?}",
-    //     { "➤".blue() },
-    //     { "BBB:".blue() },
-    //     { tick_time },
-    //     { main_clock.excess_time }
-    // );
+
     main_clock
         .main_timer
         .tick(Duration::from_secs_f32(tick_time));
@@ -221,10 +206,6 @@ fn tick_timers(
     // The audio loops after the intro, artificially add a jump in the absolute
     // counter to keep the sync with the audio stream position:
     if main_clock.absolute_timer.just_finished() {
-        println!("{} {} ----------------------------------------------------------------------------------", { "➤".blue() }, { "DDD:".blue() });
-        // main_clock
-        //     .main_timer
-        //     .tick(Duration::from_secs_f32(intro_length));
         main_clock
             .absolute_timer
             .tick(Duration::from_secs_f32(intro_length));
@@ -240,31 +221,8 @@ fn tick_timers(
             // Prevent problems when looping the song:
             main_clock.excess_time = audio_sync.signum() as f32
                 * (audio_sync.abs() as f32).rem_euclid(beat_length / TIMER_SCALE_FACTOR as f32);
-            // println!(
-            //     "{} {} {:.3?} {:.3?}",
-            //     { "➤".blue() },
-            //     { "EEE:".blue() },
-            //     { audio_sync * 1000. },
-            //     { main_clock.excess_time * 1000. }
-            // );
-            // println!(
-            //     "{} {} {:.3?} ms {:.3?} ms",
-            //     { "➤".blue() },
-            //     { "DDD:".blue() },
-            //     {
-            //         (main_clock.absolute_timer.elapsed_secs() - main_clock.last_absolute_timer)
-            //             * 1000.
-            //     },
-            //     { (play_pos as f32 - main_clock.last_absolute_timer) * 1000. }
-            // );
             main_clock.last_absolute_timer = main_clock.absolute_timer.elapsed_secs();
             main_clock.last_audio_time = play_pos as f32;
-            // println!(
-            //     "{} {} audio sync {:.1?} ms",
-            //     { "➤".blue() },
-            //     { "AAA:".blue() },
-            //     { audio_sync * 1000. }
-            // );
         }
 
         /* ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ Execute logic ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ */
@@ -273,13 +231,6 @@ fn tick_timers(
         if main_clock.cloud_counter >= TIMER_SCALE_FACTOR {
             main_clock.move_clouds = true;
             main_clock.cloud_counter = 0;
-            // println!(
-            //     "{} {} {:.3?} {:.3?}",
-            //     { "➤".blue() },
-            //     { "CCC:".blue() },
-            //     { main_clock.absolute_timer.elapsed_secs() },
-            //     { play_pos.unwrap() }
-            // );
         }
     } else {
         main_clock.move_clouds = false;

@@ -16,10 +16,8 @@ use winit::window::Icon;
 
 // WIP: cleanup code (reset timers)
 
-// TODO: limit the player buffer to 2 moves per 2 beats
-
-// TODO: lock the cloud after → force to follow the beat! Sample on moving the cloud!
 // TODO: use keep pressing → + space to turn all adjacent clouds inward to unlock some situations. Must be aligned with the beat
+// TODO: limit the player buffer to 2 moves per 2 beats?
 // IDEA: add item spawing to accelerate the speed, add clouds, destroy clouds, revert everything
 // TODO: add music
 // TODO: make the menu actuallly quit
