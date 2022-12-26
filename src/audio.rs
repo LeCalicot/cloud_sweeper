@@ -50,7 +50,6 @@ impl Plugin for InternalAudioPlugin {
                 ConditionSet::new()
                     .run_in_state(GameState::Playing)
                     .with_system(play_debug_beep_on_spawn)
-                    .with_system(resync_music)
                     .into(),
             );
     }
@@ -65,42 +64,6 @@ fn play_music(audio_assets: Res<AudioAssets>, audio: Res<Audio>, mut commands: C
         handle = audio.play(audio_assets.song_2.clone()).handle();
         commands.insert_resource(InstanceHandle { handle });
     }
-}
-
-fn resync_music(
-    mut audio_instances: ResMut<Assets<AudioInstance>>,
-    mut main_clock: ResMut<MainClock>,
-    handle: Res<InstanceHandle>,
-) {
-    // if audio_instances.get_mut(&handle.handle).is_some() {
-    //     let play_pos = audio_instances.state(&handle.handle).position();
-    //     if main_clock.move_clouds {
-    //         if let Some(play_pos) = play_pos {
-    //             // The correction is positive if the game logic is late, negative
-    //             // if in advance (we add the correction):
-    //             let beat_width = MAIN_PERIOD as f64 * TIMER_SCALE_FACTOR as f64;
-    //             let div = play_pos.div_euclid(beat_width);
-    //             let rem = play_pos.rem_euclid(beat_width);
-    //             let time_correction = if (beat_width) * div > play_pos {
-    //                 // This is negative, logic in advance:
-    //                 (-rem) as f32
-    //             } else {
-    //                 // This is positive, logic is late:
-    //                 (play_pos - (beat_width) * div) as f32
-    //             };
-
-    //             println!(
-    //                 "{} {} {:?} {:?} {:?}",
-    //                 { "➤".blue() },
-    //                 { "BBB:".blue() },
-    //                 { play_pos },
-    //                 { beat_width * div },
-    //                 { play_pos - (beat_width * div) - main_clock.excess_time as f64 }
-    //             );
-    //             main_clock.time_correction = time_correction;
-    //         }
-    //     }
-    // }
 }
 
 fn play_debug_beep_on_spawn(

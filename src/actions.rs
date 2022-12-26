@@ -2,6 +2,7 @@
 
 use crate::GameState;
 use bevy::prelude::*;
+use colored::*;
 use iyes_loopless::prelude::*;
 
 pub struct ActionsPlugin;
@@ -17,14 +18,14 @@ impl Plugin for ActionsPlugin {
                 .into(),
         )
         .insert_resource(Actions {
-            next_move: GameControl::Idle,
+            next_action: GameControl::Idle,
         });
     }
 }
 
 #[derive(Default, Debug, Resource)]
 pub struct Actions {
-    pub next_move: GameControl,
+    pub next_action: GameControl,
 }
 
 fn set_movement_actions(mut actions: ResMut<Actions>, keyboard_input: Res<Input<KeyCode>>) {
@@ -34,12 +35,16 @@ fn set_movement_actions(mut actions: ResMut<Actions>, keyboard_input: Res<Input<
         GameControl::Idle => (),
         // Else, replace the input in the actions. So far the action contains
         // only one input at a time
-        input => actions.next_move = input,
+        input => {
+            actions.next_action = input;
+        }
     };
     if received_input != GameControl::Idle {
+        println!("{} {} {:?}", { "➤".blue() }, { "BBB:".blue() }, {
+            received_input
+        });
         debug!("new input: {received_input:?}");
     }
-    // actions.next_move = match_input(keyboard_input);
 }
 
 ///Enum for the direction. Idle has been added to be able to use an array buffer
@@ -52,6 +57,7 @@ pub enum GameControl {
     Down,
     Left,
     Right,
+    Special,
 }
 
 fn match_input(keyboard_input: Res<Input<KeyCode>>) -> GameControl {
@@ -66,6 +72,12 @@ fn match_input(keyboard_input: Res<Input<KeyCode>>) -> GameControl {
     }
     if keyboard_input.just_released(KeyCode::D) || keyboard_input.just_released(KeyCode::Right) {
         return GameControl::Right;
+    }
+    if keyboard_input.just_pressed(KeyCode::Space) {
+        println!("{} {} {:?}", { "➤".blue() }, { "AAA:".blue() }, {
+            "space pressed"
+        });
+        return GameControl::Special;
     }
     GameControl::Idle
 }

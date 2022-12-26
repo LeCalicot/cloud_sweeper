@@ -14,6 +14,7 @@ use iyes_loopless::prelude::*;
 pub const TILE_SIZE: f32 = 16.;
 pub const PLAYER_LAYER: f32 = 10.;
 pub const INIT_POS: [i8; 2] = [5i8, 5i8];
+pub const BUFFER_SIZE: usize = 2;
 
 pub struct PlayerPlugin;
 
@@ -23,7 +24,8 @@ pub struct PlayerPlugin;
 #[derive(Default, Resource)]
 pub struct PlayerControl {
     pub input_buffer: [GameControl; MAX_BUFFER_INPUT],
-    pub player_pos: [i8; 2],
+    pub special_control: u8,
+    pub player_pos: [i8; BUFFER_SIZE],
     pub timer: Timer,
 }
 
@@ -71,24 +73,57 @@ fn animate_sprite(
 
 /// Add all the actions (moves) to the buffer whose elements are going to be popped
 pub fn fill_player_buffer(mut actions: ResMut<Actions>, mut player_control: ResMut<PlayerControl>) {
-    let game_control = actions.next_move;
+    let game_control = actions.next_action;
     let idle_ndx = player_control
         .input_buffer
         .iter()
         .position(|x| x == &GameControl::Idle);
+    let special_ndx = player_control
+        .input_buffer
+        .iter()
+        .position(|x| x == &GameControl::Special);
 
     if game_control != GameControl::Idle {
         // The buffer is not full, we can replace the first idle element
         if let Some(x) = idle_ndx {
-            player_control.input_buffer[x] = game_control;
+            match game_control {
+                GameControl::Idle => {}
+                GameControl::Up | GameControl::Down | GameControl::Left | GameControl::Right => {
+                    // reset the special buffer every time a direction is played:
+                    player_control.special_control = 0;
+                    match special_ndx {
+                        Some(_y) => {
+                            // Reset the buffer, it forces
+                            player_control.input_buffer = [GameControl::Idle; BUFFER_SIZE];
+                            player_control.input_buffer[0] = game_control;
+                        }
+                        _ => player_control.input_buffer[x] = game_control,
+                    }
+                }
+                GameControl::Special => player_control.input_buffer[x] = GameControl::Special,
+            }
         }
         // The buffer is full, replace the last element:
         else {
             let n = player_control.input_buffer.len() - 1;
-            player_control.input_buffer[n] = game_control;
+            match game_control {
+                GameControl::Idle => {}
+                GameControl::Up | GameControl::Down | GameControl::Left | GameControl::Right => {
+                    player_control.special_control = 0;
+                    match special_ndx {
+                        Some(_y) => {
+                            // Reset the buffer, it forces
+                            player_control.input_buffer = [GameControl::Idle; BUFFER_SIZE];
+                            player_control.input_buffer[0] = game_control;
+                        }
+                        _ => player_control.input_buffer[n] = game_control,
+                    }
+                }
+                GameControl::Special => player_control.input_buffer[n] = GameControl::Special,
+            }
         }
     };
-    actions.next_move = GameControl::Idle;
+    actions.next_action = GameControl::Idle;
 }
 
 pub fn move_player(
@@ -138,7 +173,7 @@ fn spawn_player(
         )));
 }
 
-/// Pop and applies all the player moves when the timer expires
+/// Pop and applies all the player moves and special when the timer expires
 pub fn pop_player_buffer(
     mut cloud_control: ResMut<CloudControl>,
     mut grid_state: ResMut<GridState>,
@@ -148,7 +183,6 @@ pub fn pop_player_buffer(
     // timers gotta be ticked, to work
     player_control.timer.tick(time.delta());
 
-    // if it finished, despawn the bomb
     if player_control.timer.just_finished() {
         let player_action = player_control.input_buffer[0];
         player_control.input_buffer[0] = GameControl::Idle;
@@ -221,12 +255,15 @@ pub fn pop_player_buffer(
                     )
                 }
                 GameControl::Idle => (player_control.player_pos, CloudDir::Right, PushState::Empty),
+                GameControl::Special => {
+                    player_control.special_control += 1;
+                    (
+                        player_control.player_pos,
+                        CloudDir::Down,
+                        PushState::Blocked,
+                    )
+                }
             };
-        if push_state != PushState::Empty {
-            println!("{} {} {:?}", { "➤".blue() }, { "AAA:".blue() }, {
-                push_state
-            });
-        };
         let player_old_pos = player_control.player_pos;
 
         if player_action != GameControl::Idle {

@@ -44,6 +44,7 @@ pub const PUSH_COOLDOWN_FACTOR: f32 = 4.;
 pub const CLOUD_COUNT_LOSE_COND: usize = 16;
 // How late after the beat the player can be and still move:
 pub const FORGIVENESS_MARGIN: f32 = 0.050;
+pub const SPECIAL_ACTIV_NB: u8 = 2;
 
 pub struct LogicPlugin;
 
@@ -82,6 +83,7 @@ impl Plugin for LogicPlugin {
                     .label("move_clouds")
                     .after("tick_clock")
                     .with_system(move_clouds)
+                    .with_system(play_special)
                     .with_system(clouds::new_cloud)
                     .into(),
             )
@@ -416,7 +418,6 @@ impl GridState {
         // To do before checking whether the cell is empty since we detect sky
         // tiles as empty
         if object == TileOccupation::Player && self.is_sky(tile) {
-            println!("{} {} {:?}", { "➤".blue() }, { "BBB sky".blue() }, {});
             return PushState::Blocked;
         }
 
@@ -466,21 +467,10 @@ impl GridState {
 
         // Case where there is something behind, just forget it
         if tile_np2_occupied {
-            if object == TileOccupation::Player {
-                println!("{} {} {:?}", { "➤".blue() }, { "CCC:".blue() }, {});
-            };
             PushState::Blocked
         } else {
             // Case where the cloud is cooling down:
             if matches!(target_tile_occ, TileOccupation::CooldownCloud) {
-                if object == TileOccupation::Player {
-                    println!(
-                        "{} {} {:?}",
-                        { "➤".blue() },
-                        { "DDD cloud cooldown:".blue() },
-                        {}
-                    );
-                };
                 return PushState::Blocked;
             }
 
@@ -1007,6 +997,61 @@ fn move_clouds(
     cloud_control.cur_cloud_move = None;
 }
 
+// Apply the special action:
+fn play_special(
+    mut player_control: ResMut<PlayerControl>,
+    asset_server: Res<AssetServer>,
+    mut grid_state: ResMut<GridState>,
+    mut query: Query<(&mut Cloud, &mut GridPos, &mut Handle<Image>)>,
+) {
+    if player_control.special_control < SPECIAL_ACTIV_NB {
+        return;
+    }
+    println!("{} {} {:?}", { "➤".blue() }, { "CCC:".blue() }, {
+        player_control.special_control
+    });
+
+    let pl_pos = player_control.player_pos;
+    let adj_clouds = [
+        ([pl_pos[0] - 1, pl_pos[1]], TileOccupation::RightCloud),
+        ([pl_pos[0] + 1, pl_pos[1]], TileOccupation::LeftCloud),
+        ([pl_pos[0], pl_pos[1] - 1], TileOccupation::UpCloud),
+        ([pl_pos[0], pl_pos[1] + 1], TileOccupation::DownCloud),
+    ];
+
+    for (mut cloud, grid_pos, mut texture) in query.iter_mut() {
+        let pos = grid_pos.pos;
+        let adj_ndx = adj_clouds.iter().position(|&x| x.0 == pos);
+
+        if let Some(ndx) = adj_ndx {
+            // Change the cloud direction
+            grid_state.grid[pos[0] as usize][pos[1] as usize] = adj_clouds[ndx].1;
+
+            match adj_clouds[ndx].1 {
+                TileOccupation::LeftCloud => {
+                    cloud.dir = CloudDir::Left;
+                    *texture = asset_server.load("textures/left_cloud.png");
+                }
+                TileOccupation::RightCloud => {
+                    cloud.dir = CloudDir::Right;
+                    *texture = asset_server.load("textures/right_cloud.png")
+                }
+                TileOccupation::UpCloud => {
+                    cloud.dir = CloudDir::Up;
+                    *texture = asset_server.load("textures/up_cloud.png")
+                }
+                TileOccupation::DownCloud => {
+                    cloud.dir = CloudDir::Down;
+                    *texture = asset_server.load("textures/down_cloud.png")
+                }
+                _ => {}
+            }
+        }
+    }
+    // Reset the counter
+    player_control.special_control = 0;
+}
+
 /// Deal with the cloud which need to be pushed. At this stage, one already
 /// knows that the tile N+2 is empty to push the cloud
 #[allow(clippy::type_complexity)]
@@ -1340,6 +1385,7 @@ fn set_up_logic(mut commands: Commands, audio_assets: Res<AudioAssets>) {
             beat_length / TIMER_SCALE_FACTOR as f32,
             TimerMode::Repeating,
         ),
+        special_control: 0,
     });
     commands.insert_resource(GridState::default());
     commands.insert_resource(MainClock {
