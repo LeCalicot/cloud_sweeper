@@ -999,10 +999,17 @@ fn move_clouds(
 
 // Apply the special action:
 fn play_special(
+    mut commands: Commands,
     mut player_control: ResMut<PlayerControl>,
     asset_server: Res<AssetServer>,
     mut grid_state: ResMut<GridState>,
-    mut query: Query<(&mut Cloud, &mut GridPos, &mut Handle<Image>)>,
+    mut query: Query<(
+        Entity,
+        &mut Cloud,
+        &mut GridPos,
+        &IsCooldown,
+        &mut Handle<Image>,
+    )>,
 ) {
     if player_control.special_control < SPECIAL_ACTIV_NB {
         return;
@@ -1019,7 +1026,7 @@ fn play_special(
         ([pl_pos[0], pl_pos[1] + 1], TileOccupation::DownCloud),
     ];
 
-    for (mut cloud, grid_pos, mut texture) in query.iter_mut() {
+    for (entity, mut cloud, grid_pos, is_cooling, mut texture) in query.iter_mut() {
         let pos = grid_pos.pos;
         let adj_ndx = adj_clouds.iter().position(|&x| x.0 == pos);
 
@@ -1027,22 +1034,51 @@ fn play_special(
             // Change the cloud direction
             grid_state.grid[pos[0] as usize][pos[1] as usize] = adj_clouds[ndx].1;
 
+            // //Remove the component:
+            // let cloud_type = grid_state.grid[grid_pos.pos[0] as usize][grid_pos.pos[1] as usize];
+            match cloud.dir {
+                CloudDir::Up => commands.entity(entity).remove::<UpCloud>(),
+                CloudDir::Down => commands.entity(entity).remove::<DownCloud>(),
+                CloudDir::Left => commands.entity(entity).remove::<LeftCloud>(),
+                CloudDir::Right => commands.entity(entity).remove::<RightCloud>(),
+            };
+
             match adj_clouds[ndx].1 {
                 TileOccupation::LeftCloud => {
                     cloud.dir = CloudDir::Left;
-                    *texture = asset_server.load("textures/left_cloud.png");
+                    if is_cooling.val {
+                        *texture = asset_server.load("textures/left_cooldown.png");
+                    } else {
+                        *texture = asset_server.load("textures/left_cloud.png");
+                    }
+                    commands.entity(entity).insert(LeftCloud);
                 }
                 TileOccupation::RightCloud => {
                     cloud.dir = CloudDir::Right;
-                    *texture = asset_server.load("textures/right_cloud.png")
+                    if is_cooling.val {
+                        *texture = asset_server.load("textures/right_cooldown.png");
+                    } else {
+                        *texture = asset_server.load("textures/right_cloud.png");
+                    }
+                    commands.entity(entity).insert(RightCloud);
                 }
                 TileOccupation::UpCloud => {
                     cloud.dir = CloudDir::Up;
-                    *texture = asset_server.load("textures/up_cloud.png")
+                    if is_cooling.val {
+                        *texture = asset_server.load("textures/up_cooldown.png");
+                    } else {
+                        *texture = asset_server.load("textures/up_cloud.png");
+                    }
+                    commands.entity(entity).insert(UpCloud);
                 }
                 TileOccupation::DownCloud => {
                     cloud.dir = CloudDir::Down;
-                    *texture = asset_server.load("textures/down_cloud.png")
+                    if is_cooling.val {
+                        *texture = asset_server.load("textures/down_cooldown.png");
+                    } else {
+                        *texture = asset_server.load("textures/down_cloud.png");
+                    }
+                    commands.entity(entity).insert(DownCloud);
                 }
                 _ => {}
             }
