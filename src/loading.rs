@@ -12,13 +12,13 @@ pub struct LoadingPlugin;
 /// If interested, take a look at https://bevy-cheatbook.github.io/features/assets.html
 impl Plugin for LoadingPlugin {
     fn build(&self, app: &mut App) {
-        app.add_loading_state(
-            LoadingState::new(GameState::Loading)
-                .continue_to_state(GameState::Menu)
-                .with_collection::<FontAssets>()
-                .with_collection::<AudioAssets>()
-                .with_collection::<TextureAssets>(),
-        );
+        app.add_state::<GameState>()
+            .add_loading_state(
+                LoadingState::new(GameState::Loading).continue_to_state(GameState::Menu),
+            )
+            .add_collection_to_loading_state::<_, FontAssets>(GameState::Loading)
+            .add_collection_to_loading_state::<_, AudioAssets>(GameState::Loading)
+            .add_collection_to_loading_state::<_, TextureAssets>(GameState::Loading);
     }
 }
 

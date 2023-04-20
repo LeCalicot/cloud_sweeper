@@ -7,7 +7,6 @@ use crate::GameState;
 use bevy::prelude::*;
 use bevy_kira_audio::prelude::*;
 use colored::*;
-use iyes_loopless::prelude::*;
 
 pub struct InternalAudioPlugin;
 
@@ -45,13 +44,8 @@ pub struct InstanceHandle {
 impl Plugin for InternalAudioPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(AudioPlugin)
-            .add_enter_system(GameState::Playing, play_music)
-            .add_system_set(
-                ConditionSet::new()
-                    .run_in_state(GameState::Playing)
-                    .with_system(play_debug_beep_on_spawn)
-                    .into(),
-            );
+            .add_system(play_music.in_schedule(OnEnter(GameState::Playing)))
+            .add_system(play_debug_beep_on_spawn.run_if(in_state(GameState::Playing)));
     }
 }
 

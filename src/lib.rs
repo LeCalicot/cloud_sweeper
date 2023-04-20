@@ -25,14 +25,14 @@ use bevy::app::App;
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::*;
 use bevy_prototype_debug_lines::DebugLinesPlugin;
-use iyes_loopless::prelude::*;
 
 // This example game uses States to separate logic
 // See https://bevy-cheatbook.github.io/programming/states.html
 // Or https://github.com/bevyengine/bevy/blob/main/examples/ecs/state.rs
-#[derive(Clone, Eq, PartialEq, Debug, Hash)]
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 enum GameState {
     // During the loading State the LoadingPlugin will load our assets
+    #[default]
     Loading,
     // During this State the actual game logic is executed
     Playing,
@@ -45,7 +45,8 @@ pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app.add_loopless_state(GameState::Loading)
+        App::new()
+            .add_state::<GameState>()
             .add_plugin(DebugLinesPlugin::default())
             .add_plugin(LoadingPlugin)
             .add_plugin(MenuPlugin)

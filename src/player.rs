@@ -9,7 +9,6 @@ use crate::GameState;
 use bevy::prelude::*;
 // use bevy::render::texture::ImageSettings;
 use colored::*;
-use iyes_loopless::prelude::*;
 
 pub const TILE_SIZE: f32 = 16.;
 pub const PLAYER_LAYER: f32 = 10.;
@@ -38,14 +37,13 @@ pub struct Player {
 /// Player logic is only active during the State `GameState::Playing`
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_enter_system(GameState::Playing, spawn_player)
-            .add_system_set(
-                ConditionSet::new()
-                    .run_in_state(GameState::Playing)
-                    .after("fill_player_buffer")
-                    .with_system(animate_sprite)
-                    .with_system(move_player)
-                    .into(),
+        app.add_system(spawn_player.in_schedule(OnEnter(GameState::Playing)))
+            .add_systems(
+                (
+                    animate_sprite.run_if(in_state(GameState::Playing)),
+                    move_player.run_if(in_state(GameState::Playing)),
+                )
+                    .after(fill_player_buffer),
             );
     }
 }

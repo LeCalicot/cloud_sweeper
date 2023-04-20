@@ -3,7 +3,6 @@
 use crate::GameState;
 use bevy::prelude::*;
 use colored::*;
-use iyes_loopless::prelude::*;
 
 pub struct ActionsPlugin;
 
@@ -11,15 +10,10 @@ pub struct ActionsPlugin;
 // Actions can then be used as a resource in other systems to act on the player input.
 impl Plugin for ActionsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_set(
-            ConditionSet::new()
-                .run_in_state(GameState::Playing)
-                .with_system(set_movement_actions)
-                .into(),
-        )
-        .insert_resource(Actions {
-            next_action: GameControl::Idle,
-        });
+        app.add_system(set_movement_actions.run_if(in_state(GameState::Playing)))
+            .insert_resource(Actions {
+                next_action: GameControl::Idle,
+            });
     }
 }
 

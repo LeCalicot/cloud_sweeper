@@ -8,7 +8,6 @@ use bevy_ecs_tilemap::map::TilemapTexture;
 use bevy_ecs_tilemap::prelude::*;
 use bevy_prototype_debug_lines::DebugLines;
 use colored::*;
-use iyes_loopless::prelude::*;
 
 pub struct WorldPlugin;
 
@@ -34,15 +33,9 @@ pub const DISPLAY_RATIO: f32 = 1. / 4.;
 /// This plugin handles world related stuff: background, cloud movement,...
 impl Plugin for WorldPlugin {
     fn build(&self, app: &mut App) {
-        app.add_enter_system(GameState::Playing, setup_world)
+        app.add_system(setup_world.in_schedule(OnEnter(GameState::Playing)))
             // .add_enter_system(GameState::Playing, spawn_world)
-            .add_system_set(
-                ConditionSet::new()
-                    .run_in_state(GameState::Playing)
-                    .with_system(update_world)
-                    // .with_system(draw_grid)
-                    .into(),
-            )
+            .add_system(update_world.run_if(in_state(GameState::Playing)))
             // .insert_resource(ImageSettings::default_nearest())
             .add_plugin(TilemapPlugin);
     }

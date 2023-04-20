@@ -6,10 +6,12 @@ use crate::ui::{MessBar, MessTile};
 use crate::GameState;
 use crate::{clouds::Cloud, loading::FontAssets};
 use bevy::prelude::*;
+use bevy::text::BreakLineOn;
 use bevy::window::close_on_esc;
 use bevy_kira_audio::prelude::*;
 use bevy_kira_audio::{Audio, AudioEasing, AudioTween};
-use iyes_loopless::prelude::*;
+use {AlignItems, BackgroundColor, JustifyContent, UiRect};
+
 #[cfg(debug_assertions)]
 const AUTOSTART_TIME_MS: u64 = 1000;
 use crate::world::{Platform, Sky, CAMERA_LAYER, DISPLAY_RATIO};
@@ -22,26 +24,14 @@ pub struct MenuPlugin;
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ButtonColors>()
-            .add_enter_system(GameState::Menu, setup_menu)
-            .add_enter_system(GameState::Menu, click_play_button)
-            .add_exit_system(GameState::Menu, cleanup_menu)
-            .add_system_set(
-                ConditionSet::new()
-                    .run_in_state(GameState::Menu)
-                    .with_system(click_play_button)
-                    .with_system(close_on_esc)
-                    .with_system(debug_start_auto)
-                    .into(),
-            )
-            .add_enter_system(GameState::GameOver, setup_game_over_screen)
-            .add_enter_system(GameState::GameOver, game_over_clear)
-            .add_exit_system(GameState::GameOver, exit_game_over_menu)
-            .add_system_set(
-                ConditionSet::new()
-                    .run_in_state(GameState::GameOver)
-                    .with_system(game_over_screen)
-                    .into(),
-            );
+            .add_system(setup_menu.in_schedule(OnEnter(GameState::Playing)))
+            .add_system(click_play_button.in_schedule(OnEnter(GameState::Playing)))
+            .add_system(cleanup_menu.in_schedule(OnExit(GameState::Playing)))
+            .add_systems((click_play_button, close_on_esc, debug_start_auto))
+            .add_system(setup_game_over_screen.in_schedule(OnEnter(GameState::GameOver)))
+            .add_system(game_over_clear.in_schedule(OnEnter(GameState::GameOver)))
+            .add_system(exit_game_over_menu.in_schedule(OnEnter(GameState::GameOver)))
+            .add_system(game_over_screen.run_if(in_state(GameState::GameOver)));
     }
 }
 
@@ -106,7 +96,8 @@ fn setup_menu(
                             color: Color::rgb(0.9, 0.9, 0.9),
                         },
                     }],
-                    alignment: Default::default(),
+                    alignment: TextAlignment::Center,
+                    linebreak_behaviour: BreakLineOn::WordBoundary,
                 },
                 ..Default::default()
             });
@@ -124,7 +115,7 @@ fn click_play_button(
 ) {
     for (interaction, mut color) in &mut interaction_query {
         match *interaction {
-            Interaction::Clicked => commands.insert_resource(NextState(GameState::Playing)),
+            Interaction::Clicked => commands.insert_resource(NextState(Some(GameState::Playing))),
             Interaction::Hovered => {
                 *color = button_colors.hovered;
             }
@@ -138,7 +129,7 @@ fn click_play_button(
 #[cfg(debug_assertions)]
 fn debug_start_auto(mut commands: Commands, time: Res<Time>) {
     if time.elapsed() > Duration::from_millis(AUTOSTART_TIME_MS) {
-        commands.insert_resource(NextState(GameState::Playing));
+        commands.insert_resource(NextState(Some(GameState::Playing)));
     };
 }
 
@@ -174,7 +165,8 @@ fn setup_game_over_screen(
                             color: Color::rgb(0.9, 0.9, 0.9),
                         },
                     }],
-                    alignment: Default::default(),
+                    alignment: TextAlignment::Center,
+                    linebreak_behaviour: BreakLineOn::WordBoundary,
                 },
                 ..Default::default()
             });
@@ -204,7 +196,8 @@ fn setup_game_over_screen(
                             color: Color::rgb(0.9, 0.9, 0.9),
                         },
                     }],
-                    alignment: Default::default(),
+                    alignment: TextAlignment::Center,
+                    linebreak_behaviour: BreakLineOn::WordBoundary,
                 },
                 ..Default::default()
             });
@@ -223,7 +216,7 @@ fn game_over_screen(
 ) {
     for (interaction, mut color) in &mut interaction_query {
         match *interaction {
-            Interaction::Clicked => commands.insert_resource(NextState(GameState::Menu)),
+            Interaction::Clicked => commands.insert_resource(NextState(Some(GameState::Menu))),
             Interaction::Hovered => {
                 *color = button_colors.hovered;
             }
