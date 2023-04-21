@@ -34,8 +34,6 @@ pub const DISPLAY_RATIO: f32 = 1. / 4.;
 
 fn main() {
     App::new()
-        // .insert_resource(Msaa { samples: 1 })
-        .insert_resource(ClearColor(Color::rgb(0., 0., 0.)))
         .add_plugins(
             DefaultPlugins
                 .set(ImagePlugin::default_nearest())
@@ -57,6 +55,8 @@ fn main() {
                     ..default()
                 }),
         )
+        .insert_resource(Msaa::Off)
+        .insert_resource(ClearColor(Color::rgb(0., 0., 0.)))
         .add_plugin(GamePlugin)
         .add_startup_system(set_window_icon)
         .run();

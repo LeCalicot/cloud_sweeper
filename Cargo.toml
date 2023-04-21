@@ -30,7 +30,7 @@ rand = "0.8.5"
 # keep the following in sync with Bevy's dependencies
 winit = { version = "0.28", default-features = false }
 image = { version = "0.24", default-features = false }
-bevy_prototype_debug_lines = "0.10"
+# bevy_prototype_debug_lines = "0.10"
 bevy_ecs_tilemap = "0.10"
 colored = "2.0.0"
 

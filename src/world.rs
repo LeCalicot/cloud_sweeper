@@ -6,7 +6,7 @@ use bevy::prelude::*;
 use bevy_ecs_tilemap::helpers::geometry::get_tilemap_center_transform;
 use bevy_ecs_tilemap::map::TilemapTexture;
 use bevy_ecs_tilemap::prelude::*;
-use bevy_prototype_debug_lines::DebugLines;
+// use bevy_prototype_debug_lines::DebugLines;
 use colored::*;
 
 pub struct WorldPlugin;
