@@ -3,7 +3,7 @@
 #![cfg_attr(debug_assertions, allow(dead_code, unused_imports))]
 
 use bevy::prelude::*;
-use bevy::window::{PresentMode, PrimaryWindow};
+use bevy::window::{PresentMode, PrimaryWindow, WindowResolution};
 // use bevy::prelude::{
 //     App, ClearColor, Color, ImagePlugin, Msaa, NonSend, PluginGroup, WindowDescriptor,
 // };
@@ -40,11 +40,13 @@ fn main() {
                 .set(WindowPlugin {
                     primary_window: Some(Window {
                         title: "Cloud Sweeper".into(),
-                        resolution: (
+                        mode: bevy::window::WindowMode::Windowed,
+                        resizable: false,
+                        resolution: WindowResolution::new(
                             10.5 * TILE_SIZE / DISPLAY_RATIO,
                             10. * TILE_SIZE / DISPLAY_RATIO,
                         )
-                            .into(),
+                        .with_scale_factor_override(1.0),
                         present_mode: PresentMode::AutoVsync,
                         // Tells wasm to resize the window according to the available canvas
                         fit_canvas_to_parent: true,

@@ -101,7 +101,8 @@ fn setup_world(mut commands: Commands, asset_server: Res<AssetServer>) {
             &grid_size,
             &TilemapType::Square,
             0.,
-        ) * Transform::from_xyz(0.0, TILE_SIZE / 2., 0.0),
+            // ) * Transform::from_xyz(0.0, TILE_SIZE / 2., 0.0),
+        ) * Transform::from_xyz(-TILE_SIZE / 2., 0., 0.0),
         ..Default::default()
     });
 }
