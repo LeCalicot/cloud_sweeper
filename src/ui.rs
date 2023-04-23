@@ -2,7 +2,6 @@ use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
 use bevy_ecs_tilemap::tiles::TileStorage;
 use colored::*;
-use iyes_loopless::prelude::*;
 
 use crate::{
     logic::{GridState, CLOUD_COUNT_LOSE_COND},
@@ -24,13 +23,8 @@ pub struct MessTile;
 /// This plugin handles the UI interface
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
-        app.add_enter_system(GameState::Playing, setup_mess_bar)
-            .add_system_set(
-                ConditionSet::new()
-                    .run_in_state(GameState::Playing)
-                    .with_system(update_mess_bar)
-                    .into(),
-            );
+        app.add_system(setup_mess_bar.in_schedule(OnEnter(GameState::Playing)))
+            .add_system(update_mess_bar.run_if(in_state(GameState::Playing)));
     }
 }
 
@@ -94,7 +88,7 @@ pub fn get_mess_tile_pos(ndx: u32, z: f32) -> Transform {
 }
 
 fn update_mess_bar(
-    mut commands: Commands,
+    mut next_state: ResMut<NextState<GameState>>,
     mess_query: Query<&mut MessBar>,
     mut tile_query: Query<(&TilePos, &mut TileVisible), With<MessTile>>,
 ) {
@@ -112,6 +106,6 @@ fn update_mess_bar(
     }
 
     if mess_counter > CLOUD_COUNT_LOSE_COND {
-        commands.insert_resource(NextState(GameState::GameOver))
+        next_state.set(GameState::GameOver);
     }
 }

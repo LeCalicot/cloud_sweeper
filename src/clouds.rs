@@ -8,7 +8,6 @@ use crate::{
 };
 use bevy::prelude::*;
 use colored::*;
-use iyes_loopless::prelude::*;
 
 pub const CLOUD_LAYER: f32 = 9.;
 

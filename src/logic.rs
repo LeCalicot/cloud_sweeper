@@ -21,7 +21,7 @@ use bevy::prelude::*;
 use bevy_kira_audio::prelude::*;
 // use bevy::render::texture::ImageSettings;
 use colored::*;
-use iyes_loopless::prelude::*;
+
 use rand::seq::SliceRandom;
 
 pub const MAX_BUFFER_INPUT: usize = 2;
@@ -48,63 +48,65 @@ pub const SPECIAL_ACTIV_NB: u8 = 2;
 
 pub struct LogicPlugin;
 
+// System sets can be used to group systems and configured to control relative ordering
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+enum LogicSystem {
+    TickClock,
+    FillPlayerBuffer,
+    PopPlayerBuffer,
+    MoveClouds,
+    PushClouds,
+    UpdateSprites,
+}
+
 /// This plugin handles player related stuff like movement
 /// Player logic is only active during the State `GameState::Playing`
 impl Plugin for LogicPlugin {
     fn build(&self, app: &mut App) {
-        app.add_enter_system(GameState::Playing, set_up_logic)
-            .add_system_set(
-                ConditionSet::new()
-                    .run_in_state(GameState::Playing)
-                    .label("tick_clock")
-                    .before("reset_cooldown_timers")
-                    .with_system(tick_timers)
-                    .with_system(set_cloud_direction)
-                    .into(),
+        app.add_system(set_up_logic.in_schedule(OnEnter(GameState::Playing)))
+            .add_systems(
+                (
+                    tick_timers.run_if(in_state(GameState::Playing)),
+                    set_cloud_direction.run_if(in_state(GameState::Playing)),
+                )
+                    .in_set(LogicSystem::TickClock)
+                    .before(reset_cooldown_timers),
             )
-            .add_system_set(
-                ConditionSet::new()
-                    .run_in_state(GameState::Playing)
-                    .label("fill_player_buffer")
-                    .with_system(fill_player_buffer)
-                    .into(),
+            .add_system(
+                fill_player_buffer
+                    .run_if(in_state(GameState::Playing))
+                    .in_set(LogicSystem::FillPlayerBuffer),
             )
-            .add_system_set(
-                ConditionSet::new()
-                    .run_in_state(GameState::Playing)
-                    .label("pop_player_buffer")
-                    .with_system(pop_player_buffer)
-                    .with_system(check_lose_condition)
-                    .into(),
+            .add_systems(
+                (
+                    pop_player_buffer.run_if(in_state(GameState::Playing)),
+                    check_lose_condition.run_if(in_state(GameState::Playing)),
+                )
+                    .in_set(LogicSystem::PopPlayerBuffer),
             )
-            .add_system_set(
-                ConditionSet::new()
-                    .run_in_state(GameState::Playing)
-                    .label("move_clouds")
-                    .after("tick_clock")
-                    .with_system(move_clouds)
-                    .with_system(play_special)
-                    .with_system(clouds::new_cloud)
-                    .into(),
+            .add_systems(
+                (
+                    move_clouds.run_if(in_state(GameState::Playing)),
+                    play_special.run_if(in_state(GameState::Playing)),
+                    clouds::new_cloud.run_if(in_state(GameState::Playing)),
+                )
+                    .in_set(LogicSystem::MoveClouds)
+                    .after(LogicSystem::TickClock),
             )
-            .add_system_set(
-                ConditionSet::new()
-                    .run_in_state(GameState::Playing)
-                    .label("push_clouds")
-                    .after("move_clouds")
-                    .with_system(push_clouds)
-                    .into(),
+            .add_system(
+                push_clouds
+                    .run_if(in_state(GameState::Playing))
+                    .in_set(LogicSystem::PushClouds)
+                    .after(LogicSystem::MoveClouds),
             )
-            .add_system_set(
-                ConditionSet::new()
-                    .run_in_state(GameState::Playing)
-                    .label("update_sprites")
-                    .after("push_clouds")
-                    // .after("move_clouds")
-                    .with_system(update_cloud_pos)
-                    .with_system(despawn_clouds)
-                    .with_system(count_clouds)
-                    .into(),
+            .add_systems(
+                (
+                    update_cloud_pos.run_if(in_state(GameState::Playing)),
+                    despawn_clouds.run_if(in_state(GameState::Playing)),
+                    count_clouds.run_if(in_state(GameState::Playing)),
+                )
+                    .in_set(LogicSystem::UpdateSprites)
+                    .after(LogicSystem::PushClouds),
             );
     }
 }
