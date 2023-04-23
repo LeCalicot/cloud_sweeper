@@ -5,6 +5,7 @@ use crate::player::Player;
 use crate::ui::{MessBar, MessTile};
 use crate::GameState;
 use crate::{clouds::Cloud, loading::FontAssets};
+use bevy::app::AppExit;
 use bevy::prelude::*;
 use bevy::text::BreakLineOn;
 use bevy::window::close_on_esc;
@@ -32,7 +33,8 @@ impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ButtonColors>()
             .add_system(setup_menu.in_schedule(OnEnter(GameState::Menu)))
-            .add_system(click_play_button.in_schedule(OnEnter(GameState::Menu)))
+            .add_system(click_play_button.run_if(in_state(GameState::Menu)))
+            // .add_system(click_play_button.in_schedule(OnEnter(GameState::Menu)))
             .add_system(cleanup_menu.in_schedule(OnExit(GameState::Menu)))
             .add_systems((
                 click_play_button.run_if(in_state(GameState::Menu)),
@@ -40,8 +42,9 @@ impl Plugin for MenuPlugin {
             ))
             .add_system(setup_game_over_screen.in_schedule(OnEnter(GameState::GameOver)))
             .add_system(game_over_clear.in_schedule(OnEnter(GameState::GameOver)))
-            .add_system(exit_game_over_menu.in_schedule(OnEnter(GameState::GameOver)))
-            .add_system(game_over_screen.run_if(in_state(GameState::GameOver)));
+            .add_system(exit_game_over_menu.in_schedule(OnExit(GameState::GameOver)))
+            .add_system(game_over_screen.run_if(in_state(GameState::GameOver)))
+            .add_system(click_quit_button.run_if(in_state(GameState::GameOver)));
         #[cfg(debug_assertions)]
         {
             app.init_resource::<DebugVariables>()
@@ -64,6 +67,8 @@ struct ButtonColors {
 pub struct GameOver;
 #[derive(Component)]
 pub struct MainMenu;
+#[derive(Component)]
+pub struct QuitGame;
 
 impl Default for ButtonColors {
     fn default() -> Self {
@@ -131,11 +136,34 @@ fn click_play_button(
         (&Interaction, &mut BackgroundColor),
         (Changed<Interaction>, With<MainMenu>),
     >,
-    mut commands: Commands,
 ) {
     for (interaction, mut color) in &mut interaction_query {
         match *interaction {
             Interaction::Clicked => next_state.set(GameState::Playing),
+            Interaction::Hovered => {
+                *color = button_colors.hovered;
+            }
+            Interaction::None => {
+                *color = button_colors.normal;
+            }
+        }
+    }
+}
+
+#[allow(clippy::type_complexity)]
+fn click_quit_button(
+    button_colors: Res<ButtonColors>,
+    mut interaction_query: Query<
+        (&Interaction, &mut BackgroundColor),
+        (Changed<Interaction>, With<QuitGame>),
+    >,
+    mut exit: EventWriter<AppExit>,
+) {
+    for (interaction, mut color) in &mut interaction_query {
+        match *interaction {
+            Interaction::Clicked => {
+                exit.send(AppExit);
+            }
             Interaction::Hovered => {
                 *color = button_colors.hovered;
             }
@@ -238,6 +266,7 @@ fn setup_game_over_screen(
             // color: button_colors.normal,
             ..Default::default()
         })
+        .insert(QuitGame)
         .with_children(|parent| {
             parent.spawn(TextBundle {
                 text: Text {
@@ -294,22 +323,22 @@ fn game_over_clear(
             With<MessTile>,
         )>,
     >,
+    audio: Res<Audio>,
 ) {
     for entity in query.iter_mut() {
         commands.entity(entity).despawn();
     }
+    audio.stop().fade_out(AudioTween::new(
+        Duration::from_secs(1),
+        AudioEasing::InOutPowi(2),
+    ));
 }
 
 fn exit_game_over_menu(
     mut commands: Commands,
     mut query: Query<Entity, (With<Button>, With<GameOver>)>,
-    audio: Res<Audio>,
 ) {
     for entity in query.iter_mut() {
         commands.entity(entity).despawn_recursive();
-        audio.stop().fade_out(AudioTween::new(
-            Duration::from_secs(1),
-            AudioEasing::InOutPowi(2),
-        ));
     }
 }

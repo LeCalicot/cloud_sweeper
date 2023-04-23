@@ -1,5 +1,7 @@
 #![cfg_attr(debug_assertions, allow(dead_code, unused_imports))]
 
+use std::time::Duration;
+
 use crate::actions::{Actions, GameControl};
 use crate::loading::AudioAssets;
 use crate::logic::{CloudControl, MainClock, SPAWN_FREQUENCY, TIMER_SCALE_FACTOR};
@@ -59,6 +61,13 @@ fn play_music(audio_assets: Res<AudioAssets>, audio: Res<Audio>, mut commands: C
         commands.insert_resource(InstanceHandle { handle });
     }
 }
+
+// fn stop_music(audio: Res<Audio>) {
+//     audio.stop().fade_out(AudioTween::new(
+//         Duration::from_secs(1),
+//         AudioEasing::InOutPowi(2),
+//     ));
+// }
 
 fn play_debug_beep_on_spawn(
     main_clock: Res<MainClock>,
