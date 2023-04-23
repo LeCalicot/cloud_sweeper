@@ -9,4 +9,5 @@ The code of this project is licensed under the MIT licences (see
 [LICENCE.md](LICENSE.md)).
 
 For the music assets:
-- `song_1` is copyrighted to [Angelin Faure](https://www.fiverr.com/angelinfaure)
+- `song_1` is by [Angelin Faure](https://www.fiverr.com/angelinfaure)
+- `song_2` is by [Hstick](https://www.fiverr.com/hstick) 

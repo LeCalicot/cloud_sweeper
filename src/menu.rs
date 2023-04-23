@@ -30,12 +30,18 @@ impl Plugin for MenuPlugin {
             .add_systems((
                 click_play_button.run_if(in_state(GameState::Menu)),
                 close_on_esc.run_if(in_state(GameState::Menu)),
-                debug_start_auto.run_if(in_state(GameState::Menu)),
             ))
             .add_system(setup_game_over_screen.in_schedule(OnEnter(GameState::GameOver)))
             .add_system(game_over_clear.in_schedule(OnEnter(GameState::GameOver)))
             .add_system(exit_game_over_menu.in_schedule(OnEnter(GameState::GameOver)))
             .add_system(game_over_screen.run_if(in_state(GameState::GameOver)));
+        #[cfg(debug_assertions)]
+        {
+            app.add_system(debug_start_auto.run_if(in_state(GameState::Menu)),)
+            // /.add_plugin(FrameTimeDiagnosticsPlugin::default())
+                // .add_plugin(LogDiagnosticsPlugin::default())
+                ;
+        }
     }
 }
 

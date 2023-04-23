@@ -21,14 +21,10 @@ use winit::window::{Icon, WindowId};
 // TODO: bug, when in a corner, doesn't detect lose condition
 
 // TODO: add lose condition when the player is totally surrounded
-// TODO: use keep pressing → + space to turn all adjacent clouds inward to unlock some situations. Must be aligned with the beat
 // TODO: limit the player buffer to 2 moves per 2 beats?
 // IDEA: add item spawing to accelerate the speed, add clouds, destroy clouds, revert everything
-// TODO: add music
 // TODO: make the menu actuallly quit
 // TODO: add tweaning
-// TODO: sync player actions with music
-// TODO: sync music with cloud spawning
 
 pub const TILE_SIZE: f32 = 16.;
 pub const DISPLAY_RATIO: f32 = 1. / 4.;
