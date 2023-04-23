@@ -624,6 +624,7 @@ fn check_lose_condition(
     mut commands: Commands,
     grid_state: ResMut<GridState>,
     player_control: ResMut<PlayerControl>,
+    mut next_state: ResMut<NextState<GameState>>,
 ) {
     let next_tiles = [
         [
@@ -645,16 +646,16 @@ fn check_lose_condition(
     ];
     let mut is_blocked = [false, false, false, false];
 
-    // for (i, tile) in next_tiles.into_iter().enumerate() {
-    //     is_blocked[i] = matches!(
-    //         grid_state.is_occupied(tile, SEQUENCE[i], TileOccupation::Player),
-    //         PushState::Blocked
-    //     );
-    //     let has_lost = is_blocked.into_iter().all(|x| x);
-    //     if has_lost {
-    //         commands.insert_resource(NextState(GameState::GameOver))
-    //     }
-    // }
+    for (i, tile) in next_tiles.into_iter().enumerate() {
+        is_blocked[i] = matches!(
+            grid_state.is_occupied(tile, SEQUENCE[i], TileOccupation::Player),
+            PushState::Blocked
+        );
+        let has_lost = is_blocked.into_iter().all(|x| x);
+        if has_lost {
+            next_state.set(GameState::GameOver)
+        }
+    }
 }
 
 fn count_clouds(grid_state: Res<GridState>, mut query: Query<&mut MessBar>) {

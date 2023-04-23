@@ -17,7 +17,8 @@ use bevy::{
 use cloud_sweeper::GamePlugin;
 use std::io::Cursor;
 use winit::window::{Icon, WindowId};
-// TODO: bug, when doing special keep cooldown texture
+
+// WIP: in debug mode, lose after 5s, make the retry button work properly
 // TODO: bug, when in a corner, doesn't detect lose condition
 
 // TODO: add lose condition when the player is totally surrounded

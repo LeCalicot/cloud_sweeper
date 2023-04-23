@@ -17,6 +17,13 @@ const AUTOSTART_TIME_MS: u64 = 1000;
 use crate::world::{Platform, Sky, CAMERA_LAYER, DISPLAY_RATIO};
 use std::time::Duration;
 
+#[cfg(debug_assertions)]
+#[derive(Resource, Default)]
+struct DebugVariables {
+    has_playing: bool,
+    has_game_over: bool,
+}
+
 pub struct MenuPlugin;
 
 /// This plugin is responsible for the game menu (containing only one button...)
@@ -37,10 +44,12 @@ impl Plugin for MenuPlugin {
             .add_system(game_over_screen.run_if(in_state(GameState::GameOver)));
         #[cfg(debug_assertions)]
         {
-            app.add_system(debug_start_auto.run_if(in_state(GameState::Menu)),)
+            app.init_resource::<DebugVariables>()
+                .add_system(debug_start_auto.run_if(in_state(GameState::Menu)))
+                .add_system(debug_auto_loss.run_if(in_state(GameState::Playing)));
+
             // /.add_plugin(FrameTimeDiagnosticsPlugin::default())
-                // .add_plugin(LogDiagnosticsPlugin::default())
-                ;
+            // .add_plugin(LogDiagnosticsPlugin::default())
         }
     }
 }
@@ -138,17 +147,42 @@ fn click_play_button(
 }
 
 #[cfg(debug_assertions)]
-fn debug_start_auto(time: Res<Time>, mut next_state: ResMut<NextState<GameState>>) {
+fn debug_start_auto(
+    time: Res<Time>,
+    mut next_state: ResMut<NextState<GameState>>,
+    mut debug_var: ResMut<DebugVariables>,
+) {
     use colored::Colorize;
 
-    if time.elapsed() > Duration::from_millis(AUTOSTART_TIME_MS) {
+    if time.elapsed() > Duration::from_millis(AUTOSTART_TIME_MS) && !debug_var.has_playing {
         println!(
             "{} {} {:?}",
             { colored::Colorize::blue("➤") },
             { "AAA:".blue() },
             { "enter playing state" }
         );
+        debug_var.has_playing = true;
         next_state.set(GameState::Playing);
+    }
+}
+
+#[cfg(debug_assertions)]
+fn debug_auto_loss(
+    time: Res<Time>,
+    mut next_state: ResMut<NextState<GameState>>,
+    mut debug_var: ResMut<DebugVariables>,
+) {
+    use colored::Colorize;
+
+    if time.elapsed() > Duration::from_millis(5 * AUTOSTART_TIME_MS) && !debug_var.has_game_over {
+        println!(
+            "{} {} {:?}",
+            { colored::Colorize::blue("➤") },
+            { "CCC:".blue() },
+            { "Automatic game over" }
+        );
+        debug_var.has_game_over = true;
+        next_state.set(GameState::GameOver);
     }
 }
 
