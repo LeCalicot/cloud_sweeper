@@ -49,12 +49,12 @@ impl Plugin for GamePlugin {
             // .add_plugin(DebugLinesPlugin::default())
             .add_plugin(LoadingPlugin)
             .add_plugin(MenuPlugin)
-            .add_plugin(WorldPlugin);
-        // .add_plugin(ActionsPlugin)
-        // .add_plugin(InternalAudioPlugin)
-        // .add_plugin(PlayerPlugin)
-        // .add_plugin(UiPlugin)
-        // .add_plugin(LogicPlugin);
+            .add_plugin(WorldPlugin)
+            .add_plugin(ActionsPlugin)
+            .add_plugin(InternalAudioPlugin)
+            .add_plugin(PlayerPlugin)
+            .add_plugin(UiPlugin)
+            .add_plugin(LogicPlugin);
         #[cfg(debug_assertions)]
         {
             app.add_system(bevy::window::close_on_esc)

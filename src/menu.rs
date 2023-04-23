@@ -24,10 +24,14 @@ pub struct MenuPlugin;
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ButtonColors>()
-            .add_system(setup_menu.in_schedule(OnEnter(GameState::Playing)))
-            .add_system(click_play_button.in_schedule(OnEnter(GameState::Playing)))
-            .add_system(cleanup_menu.in_schedule(OnExit(GameState::Playing)))
-            .add_systems((click_play_button, close_on_esc, debug_start_auto))
+            .add_system(setup_menu.in_schedule(OnEnter(GameState::Menu)))
+            .add_system(click_play_button.in_schedule(OnEnter(GameState::Menu)))
+            .add_system(cleanup_menu.in_schedule(OnExit(GameState::Menu)))
+            .add_systems((
+                click_play_button.run_if(in_state(GameState::Menu)),
+                close_on_esc.run_if(in_state(GameState::Menu)),
+                debug_start_auto.run_if(in_state(GameState::Menu)),
+            ))
             .add_system(setup_game_over_screen.in_schedule(OnEnter(GameState::GameOver)))
             .add_system(game_over_clear.in_schedule(OnEnter(GameState::GameOver)))
             .add_system(exit_game_over_menu.in_schedule(OnEnter(GameState::GameOver)))
@@ -107,6 +111,7 @@ fn setup_menu(
 #[allow(clippy::type_complexity)]
 fn click_play_button(
     button_colors: Res<ButtonColors>,
+    mut next_state: ResMut<NextState<GameState>>,
     mut interaction_query: Query<
         (&Interaction, &mut BackgroundColor),
         (Changed<Interaction>, With<MainMenu>),
@@ -115,7 +120,7 @@ fn click_play_button(
 ) {
     for (interaction, mut color) in &mut interaction_query {
         match *interaction {
-            Interaction::Clicked => commands.insert_resource(NextState(Some(GameState::Playing))),
+            Interaction::Clicked => next_state.set(GameState::Playing),
             Interaction::Hovered => {
                 *color = button_colors.hovered;
             }
@@ -127,10 +132,18 @@ fn click_play_button(
 }
 
 #[cfg(debug_assertions)]
-fn debug_start_auto(mut commands: Commands, time: Res<Time>) {
+fn debug_start_auto(time: Res<Time>, mut next_state: ResMut<NextState<GameState>>) {
+    use colored::Colorize;
+
     if time.elapsed() > Duration::from_millis(AUTOSTART_TIME_MS) {
-        commands.insert_resource(NextState(Some(GameState::Playing)));
-    };
+        println!(
+            "{} {} {:?}",
+            { colored::Colorize::blue("➤") },
+            { "AAA:".blue() },
+            { "enter playing state" }
+        );
+        next_state.set(GameState::Playing);
+    }
 }
 
 fn cleanup_menu(mut commands: Commands, button: Query<Entity, With<MainMenu>>) {
@@ -211,12 +224,12 @@ fn game_over_screen(
         (&Interaction, &mut BackgroundColor),
         (Changed<Interaction>, With<Button>, With<GameOver>),
     >,
-    mut commands: Commands,
+    mut next_state: ResMut<NextState<GameState>>,
     button_colors: Res<ButtonColors>,
 ) {
     for (interaction, mut color) in &mut interaction_query {
         match *interaction {
-            Interaction::Clicked => commands.insert_resource(NextState(Some(GameState::Menu))),
+            Interaction::Clicked => next_state.set(GameState::Menu),
             Interaction::Hovered => {
                 *color = button_colors.hovered;
             }

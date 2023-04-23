@@ -88,7 +88,7 @@ pub fn get_mess_tile_pos(ndx: u32, z: f32) -> Transform {
 }
 
 fn update_mess_bar(
-    mut commands: Commands,
+    mut next_state: ResMut<NextState<GameState>>,
     mess_query: Query<&mut MessBar>,
     mut tile_query: Query<(&TilePos, &mut TileVisible), With<MessTile>>,
 ) {
@@ -106,6 +106,6 @@ fn update_mess_bar(
     }
 
     if mess_counter > CLOUD_COUNT_LOSE_COND {
-        commands.insert_resource(NextState(Some(GameState::GameOver)))
+        next_state.set(GameState::GameOver);
     }
 }
