@@ -47,9 +47,9 @@ impl Plugin for MenuPlugin {
             .add_system(click_quit_button.run_if(in_state(GameState::GameOver)));
         #[cfg(debug_assertions)]
         {
-            app.init_resource::<DebugVariables>()
-                .add_system(debug_start_auto.run_if(in_state(GameState::Menu)))
-                .add_system(debug_auto_loss.run_if(in_state(GameState::Playing)));
+            app.init_resource::<DebugVariables>();
+            // .add_system(debug_start_auto.run_if(in_state(GameState::Menu)))
+            // .add_system(debug_auto_loss.run_if(in_state(GameState::Playing)));
 
             // /.add_plugin(FrameTimeDiagnosticsPlugin::default())
             // .add_plugin(LogDiagnosticsPlugin::default())
@@ -84,6 +84,7 @@ fn setup_menu(
     font_assets: Res<FontAssets>,
     // button_colors: Res<ButtonColors>,
     query: Query<Entity, With<Camera2d>>,
+    asset_server: Res<AssetServer>,
 ) {
     if query.into_iter().count() == 0 {
         commands.spawn(Camera2dBundle::default()).insert(
@@ -94,13 +95,16 @@ fn setup_menu(
             )),
         );
     }
-    // .insert(Transform::from_scale(Vec3::new(1. / 4., 1. / 4., 1.)));
-    // commands.spawn_bundle(Camera2dBundle::default());
     commands
         .spawn(ButtonBundle {
             style: Style {
                 size: Size::new(Val::Px(120.0), Val::Px(50.0)),
-                margin: UiRect::all(Val::Auto),
+                margin: UiRect {
+                    top: Val::Percent(5.),
+                    left: Val::Percent(45.),
+                    bottom: Val::Percent(5.),
+                    ..default()
+                },
                 justify_content: JustifyContent::Center,
                 align_items: AlignItems::Center,
                 ..Default::default()
@@ -126,6 +130,13 @@ fn setup_menu(
                 ..Default::default()
             });
         });
+    commands
+        .spawn(SpriteBundle {
+            texture: asset_server.load("textures/instructions.drawio.png"),
+            transform: Transform::from_xyz(0., -10., 0.).with_scale(Vec3::splat(0.3)),
+            ..default()
+        })
+        .insert(MainMenu);
 }
 
 #[allow(clippy::type_complexity)]
@@ -214,8 +225,10 @@ fn debug_auto_loss(
     }
 }
 
-fn cleanup_menu(mut commands: Commands, button: Query<Entity, With<MainMenu>>) {
-    commands.entity(button.single()).despawn_recursive();
+fn cleanup_menu(mut commands: Commands, menu_elt: Query<(Entity,), (With<MainMenu>,)>) {
+    for (entity,) in menu_elt.iter() {
+        commands.entity(entity).despawn_recursive();
+    }
 }
 
 fn setup_game_over_screen(
