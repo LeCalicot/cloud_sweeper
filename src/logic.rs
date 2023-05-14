@@ -4,12 +4,11 @@ use std::time::Duration;
 
 use crate::actions::{Actions, GameControl};
 use crate::audio::{InstanceHandle, SONG_1, SONG_2};
-use crate::clouds;
+use crate::clouds::{self, Animation, AnimationState};
 use crate::clouds::{
     Cloud, CloudDir, CooldownTimer, DownCloud, GridPos, IsCooldown, LeftCloud, RightCloud, UpCloud,
     CLOUD_LAYER,
 };
-
 use crate::loading::{AudioAssets, TextureAssets};
 use crate::player::{
     fill_player_buffer, pop_player_buffer, Player, PlayerControl, INIT_POS, TILE_SIZE,
@@ -18,6 +17,7 @@ use crate::ui::MessBar;
 use crate::world::{LEVEL_SIZE, STAGE_BL, STAGE_UR, STAGE_WIDTH};
 use crate::GameState;
 use bevy::prelude::*;
+use bevy_easings::*;
 use bevy_kira_audio::prelude::*;
 // use bevy::render::texture::ImageSettings;
 use colored::*;
@@ -39,12 +39,15 @@ const SEQUENCE: [CloudDir; 4] = [
     CloudDir::Down,
 ];
 
-// The push cooldwn is a multiple of the main clock:
+// The push cooldown is a multiple of the main clock:
 pub const PUSH_COOLDOWN_FACTOR: f32 = 4.;
 pub const CLOUD_COUNT_LOSE_COND: usize = 16;
 // How late after the beat the player can be and still move:
-pub const FORGIVENESS_MARGIN: f32 = 0.050;
-pub const SPECIAL_ACTIV_NB: u8 = 2;
+pub const FORGIVENESS_MARGIN: f32 = 0.05;
+pub const SPECIAL_ACTIVATION_NB: u8 = 2;
+pub const CLOUD_EASING: bevy_easings::EaseFunction = bevy_easings::EaseFunction::QuadraticIn;
+// Duration of the easing for the clouds in ms:
+pub const CLOUD_EASING_DURATION: u64 = 100;
 
 pub struct LogicPlugin;
 
@@ -107,7 +110,8 @@ impl Plugin for LogicPlugin {
                 )
                     .in_set(LogicSystem::UpdateSprites)
                     .after(LogicSystem::PushClouds),
-            );
+            )
+            .add_system(finish_move.run_if(in_state(GameState::Playing)));
     }
 }
 
@@ -221,10 +225,10 @@ fn tick_timers(
         // if in advance:
         // let mut audio_sync: f64 = 0.;
         if let Some(play_pos) = play_pos {
-            let audio_sync = play_pos - current_abs_time as f64;
+            let audio_sync = play_pos - (current_abs_time as f64);
             // Prevent problems when looping the song:
-            main_clock.excess_time = audio_sync.signum() as f32
-                * (audio_sync.abs() as f32).rem_euclid(beat_length / TIMER_SCALE_FACTOR as f32);
+            main_clock.excess_time = (audio_sync.signum() as f32)
+                * (audio_sync.abs() as f32).rem_euclid(beat_length / (TIMER_SCALE_FACTOR as f32));
             main_clock.last_absolute_timer = main_clock.absolute_timer.elapsed_secs();
             main_clock.last_audio_time = play_pos as f32;
         }
@@ -398,8 +402,8 @@ impl Default for GridState {
 impl GridState {
     fn down_row(&self) -> [[i8; 2]; STAGE_WIDTH as usize] {
         let mut res = [[0i8, 0i8]; STAGE_WIDTH as usize];
-        for (ndx, i) in (((LEVEL_SIZE - STAGE_WIDTH) / 2)
-            ..=(LEVEL_SIZE - (LEVEL_SIZE - STAGE_WIDTH) / 2) - 1)
+        for (ndx, i) in ((LEVEL_SIZE - STAGE_WIDTH) / 2
+            ..=LEVEL_SIZE - (LEVEL_SIZE - STAGE_WIDTH) / 2 - 1)
             .enumerate()
         {
             res[ndx][0] = i as i8;
@@ -462,10 +466,10 @@ impl GridState {
         }
 
         let next_tile_occ = self.grid[np2_tile[0] as usize][np2_tile[1] as usize];
-        let tile_np2_occupied = !(matches!(
+        let tile_np2_occupied = !matches!(
             next_tile_occ,
             TileOccupation::Empty | TileOccupation::Despawn
-        ));
+        );
 
         // Case where there is something behind, just forget it
         if tile_np2_occupied {
@@ -482,7 +486,7 @@ impl GridState {
                 CloudDir::Down => match target_tile_occ {
                     TileOccupation::UpCloud => PushState::Blocked,
                     TileOccupation::Player => {
-                        if tile[1] <= ((LEVEL_SIZE - STAGE_WIDTH) / 2) as i8 {
+                        if tile[1] <= (((LEVEL_SIZE - STAGE_WIDTH) / 2) as i8) {
                             PushState::Blocked
                         } else {
                             PushState::CanPush
@@ -493,7 +497,7 @@ impl GridState {
                 CloudDir::Up => match target_tile_occ {
                     TileOccupation::DownCloud => PushState::Blocked,
                     TileOccupation::Player => {
-                        if tile[1] >= (STAGE_WIDTH + (LEVEL_SIZE - STAGE_WIDTH) / 2 - 1) as i8 {
+                        if tile[1] >= ((STAGE_WIDTH + (LEVEL_SIZE - STAGE_WIDTH) / 2 - 1) as i8) {
                             PushState::Blocked
                         } else {
                             PushState::CanPush
@@ -504,7 +508,7 @@ impl GridState {
                 CloudDir::Left => match target_tile_occ {
                     TileOccupation::RightCloud => PushState::Blocked,
                     TileOccupation::Player => {
-                        if tile[0] <= ((LEVEL_SIZE - STAGE_WIDTH) / 2) as i8 {
+                        if tile[0] <= (((LEVEL_SIZE - STAGE_WIDTH) / 2) as i8) {
                             PushState::Blocked
                         } else {
                             PushState::CanPush
@@ -515,7 +519,7 @@ impl GridState {
                 CloudDir::Right => match target_tile_occ {
                     TileOccupation::LeftCloud => PushState::Blocked,
                     TileOccupation::Player => {
-                        if tile[0] >= (STAGE_WIDTH + (LEVEL_SIZE - STAGE_WIDTH) / 2 - 1) as i8 {
+                        if tile[0] >= ((STAGE_WIDTH + (LEVEL_SIZE - STAGE_WIDTH) / 2 - 1) as i8) {
                             PushState::Blocked
                         } else {
                             PushState::CanPush
@@ -528,7 +532,7 @@ impl GridState {
     }
 
     pub fn is_out_of_range(&self, tile: [i8; 2]) -> bool {
-        0 > tile[0] || tile[0] >= LEVEL_SIZE as i8 || 0 > tile[1] || tile[1] >= LEVEL_SIZE as i8
+        0 > tile[0] || tile[0] >= (LEVEL_SIZE as i8) || 0 > tile[1] || tile[1] >= (LEVEL_SIZE as i8)
     }
 
     pub fn is_sky(&self, tile: [i8; 2]) -> bool {
@@ -539,8 +543,8 @@ impl GridState {
     }
     fn left_col(&self) -> [[i8; 2]; STAGE_WIDTH as usize] {
         let mut res = [[0i8, 0i8]; STAGE_WIDTH as usize];
-        for (ndx, i) in (((LEVEL_SIZE - STAGE_WIDTH) / 2)
-            ..=(LEVEL_SIZE - (LEVEL_SIZE - STAGE_WIDTH) / 2) - 1)
+        for (ndx, i) in ((LEVEL_SIZE - STAGE_WIDTH) / 2
+            ..=LEVEL_SIZE - (LEVEL_SIZE - STAGE_WIDTH) / 2 - 1)
             .enumerate()
         {
             res[ndx][0] = 0i8;
@@ -596,8 +600,8 @@ impl GridState {
 
     fn right_col(&self) -> [[i8; 2]; STAGE_WIDTH as usize] {
         let mut res = [[0i8, 0i8]; STAGE_WIDTH as usize];
-        for (ndx, i) in (((LEVEL_SIZE - STAGE_WIDTH) / 2)
-            ..=(LEVEL_SIZE - (LEVEL_SIZE - STAGE_WIDTH) / 2) - 1)
+        for (ndx, i) in ((LEVEL_SIZE - STAGE_WIDTH) / 2
+            ..=LEVEL_SIZE - (LEVEL_SIZE - STAGE_WIDTH) / 2 - 1)
             .enumerate()
         {
             res[ndx][0] = (LEVEL_SIZE - 1) as i8;
@@ -608,8 +612,8 @@ impl GridState {
 
     fn up_row(&self) -> [[i8; 2]; STAGE_WIDTH as usize] {
         let mut res = [[0i8, 0i8]; STAGE_WIDTH as usize];
-        for (ndx, i) in (((LEVEL_SIZE - STAGE_WIDTH) / 2)
-            ..=(LEVEL_SIZE - (LEVEL_SIZE - STAGE_WIDTH) / 2) - 1)
+        for (ndx, i) in ((LEVEL_SIZE - STAGE_WIDTH) / 2
+            ..=LEVEL_SIZE - (LEVEL_SIZE - STAGE_WIDTH) / 2 - 1)
             .enumerate()
         {
             res[ndx][0] = i as i8;
@@ -653,7 +657,7 @@ fn check_lose_condition(
         );
         let has_lost = is_blocked.into_iter().all(|x| x);
         if has_lost {
-            next_state.set(GameState::GameOver)
+            next_state.set(GameState::GameOver);
         }
     }
 }
@@ -723,9 +727,9 @@ fn dir_to_tile(dir: CloudDir) -> TileOccupation {
 ///   bar
 fn grid_to_vec(grid_pos: [i8; 2]) -> Vec3 {
     Vec3::new(
-        (grid_pos[0]) as f32 * TILE_SIZE - (LEVEL_SIZE as f32) / 2. * TILE_SIZE + 0.5 * TILE_SIZE
+        (grid_pos[0] as f32) * TILE_SIZE - ((LEVEL_SIZE as f32) / 2.) * TILE_SIZE + 0.5 * TILE_SIZE
             - 0.5 * TILE_SIZE,
-        (grid_pos[1]) as f32 * TILE_SIZE - (LEVEL_SIZE as f32) / 2. * TILE_SIZE + 0.5 * TILE_SIZE,
+        (grid_pos[1] as f32) * TILE_SIZE - ((LEVEL_SIZE as f32) / 2.) * TILE_SIZE + 0.5 * TILE_SIZE,
         CLOUD_LAYER,
     )
 }
@@ -794,10 +798,12 @@ fn move_clouds(
                 );
 
                 match next_tile_push {
-                    PushState::Blocked => continue,
+                    PushState::Blocked => {
+                        continue;
+                    }
                     PushState::Despawn => {
                         grid_state.grid[cloud_pos.pos[0] as usize][cloud_pos.pos[1] as usize] =
-                            TileOccupation::Despawn
+                            TileOccupation::Despawn;
                     }
                     PushState::Empty => {
                         grid_state.move_on_grid(
@@ -848,10 +854,12 @@ fn move_clouds(
                     dir_to_tile(cloud_dir),
                 );
                 match next_tile_push {
-                    PushState::Blocked => continue,
+                    PushState::Blocked => {
+                        continue;
+                    }
                     PushState::Despawn => {
                         grid_state.grid[cloud_pos.pos[0] as usize][cloud_pos.pos[1] as usize] =
-                            TileOccupation::Despawn
+                            TileOccupation::Despawn;
                     }
                     PushState::Empty => {
                         grid_state.move_on_grid(
@@ -902,10 +910,12 @@ fn move_clouds(
                     dir_to_tile(cloud_dir),
                 );
                 match next_tile_push {
-                    PushState::Blocked => continue,
+                    PushState::Blocked => {
+                        continue;
+                    }
                     PushState::Despawn => {
                         grid_state.grid[cloud_pos.pos[0] as usize][cloud_pos.pos[1] as usize] =
-                            TileOccupation::Despawn
+                            TileOccupation::Despawn;
                     }
                     PushState::Empty => {
                         grid_state.move_on_grid(
@@ -956,10 +966,12 @@ fn move_clouds(
                     dir_to_tile(cloud_dir),
                 );
                 match next_tile_push {
-                    PushState::Blocked => continue,
+                    PushState::Blocked => {
+                        continue;
+                    }
                     PushState::Despawn => {
                         grid_state.grid[cloud_pos.pos[0] as usize][cloud_pos.pos[1] as usize] =
-                            TileOccupation::Despawn
+                            TileOccupation::Despawn;
                     }
                     PushState::Empty => {
                         grid_state.move_on_grid(
@@ -1014,7 +1026,7 @@ fn play_special(
         &mut Handle<Image>,
     )>,
 ) {
-    if player_control.special_control < SPECIAL_ACTIV_NB {
+    if player_control.special_control < SPECIAL_ACTIVATION_NB {
         return;
     }
     println!("{} {} {:?}", { "➤".blue() }, { "CCC:".blue() }, {
@@ -1127,27 +1139,27 @@ fn push_clouds(
                     player_control.player_pos = [
                         player_control.player_pos[0],
                         player_control.player_pos[1] + 1,
-                    ]
+                    ];
                 }
                 CloudDir::Down => {
                     player_control.player_pos = [
                         player_control.player_pos[0],
                         player_control.player_pos[1] - 1,
-                    ]
+                    ];
                 }
                 CloudDir::Left => {
                     player_control.player_pos = [
                         player_control.player_pos[0] - 1,
                         player_control.player_pos[1],
-                    ]
+                    ];
                 }
                 CloudDir::Right => {
                     player_control.player_pos = [
                         player_control.player_pos[0] + 1,
                         player_control.player_pos[1],
-                    ]
+                    ];
                 }
-            };
+            }
             grid_state.grid[pos[0] as usize][pos[1] as usize] = TileOccupation::Empty;
             grid_state.grid[player_control.player_pos[0] as usize]
                 [player_control.player_pos[1] as usize] = TileOccupation::Player;
@@ -1163,23 +1175,23 @@ fn push_clouds(
                     grid_state.grid[cloud_pos.pos[0] as usize][cloud_pos.pos[1] as usize] =
                         TileOccupation::Empty;
                     continue;
-                };
+                }
 
                 match dir {
                     CloudDir::Down => {
                         if push_type == PushState::CanPushPlayer {
                             match cloud.dir {
                                 CloudDir::Up => {
-                                    *texture = asset_server.load("textures/up_cooldown.png")
+                                    *texture = asset_server.load("textures/up_cooldown.png");
                                 }
                                 CloudDir::Down => {
-                                    *texture = asset_server.load("textures/down_cooldown.png")
+                                    *texture = asset_server.load("textures/down_cooldown.png");
                                 }
                                 CloudDir::Left => {
-                                    *texture = asset_server.load("textures/left_cooldown.png")
+                                    *texture = asset_server.load("textures/left_cooldown.png");
                                 }
                                 CloudDir::Right => {
-                                    *texture = asset_server.load("textures/right_cooldown.png")
+                                    *texture = asset_server.load("textures/right_cooldown.png");
                                 }
                             }
                             is_cooling.val = true;
@@ -1204,16 +1216,16 @@ fn push_clouds(
                         if push_type == PushState::CanPushPlayer {
                             match cloud.dir {
                                 CloudDir::Up => {
-                                    *texture = asset_server.load("textures/up_cooldown.png")
+                                    *texture = asset_server.load("textures/up_cooldown.png");
                                 }
                                 CloudDir::Down => {
-                                    *texture = asset_server.load("textures/down_cooldown.png")
+                                    *texture = asset_server.load("textures/down_cooldown.png");
                                 }
                                 CloudDir::Left => {
-                                    *texture = asset_server.load("textures/left_cooldown.png")
+                                    *texture = asset_server.load("textures/left_cooldown.png");
                                 }
                                 CloudDir::Right => {
-                                    *texture = asset_server.load("textures/right_cooldown.png")
+                                    *texture = asset_server.load("textures/right_cooldown.png");
                                 }
                             }
                             is_cooling.val = true;
@@ -1238,16 +1250,16 @@ fn push_clouds(
                         if push_type == PushState::CanPushPlayer {
                             match cloud.dir {
                                 CloudDir::Up => {
-                                    *texture = asset_server.load("textures/up_cooldown.png")
+                                    *texture = asset_server.load("textures/up_cooldown.png");
                                 }
                                 CloudDir::Down => {
-                                    *texture = asset_server.load("textures/down_cooldown.png")
+                                    *texture = asset_server.load("textures/down_cooldown.png");
                                 }
                                 CloudDir::Left => {
-                                    *texture = asset_server.load("textures/left_cooldown.png")
+                                    *texture = asset_server.load("textures/left_cooldown.png");
                                 }
                                 CloudDir::Right => {
-                                    *texture = asset_server.load("textures/right_cooldown.png")
+                                    *texture = asset_server.load("textures/right_cooldown.png");
                                 }
                             }
                             is_cooling.val = true;
@@ -1272,16 +1284,16 @@ fn push_clouds(
                         if push_type == PushState::CanPushPlayer {
                             match cloud.dir {
                                 CloudDir::Up => {
-                                    *texture = asset_server.load("textures/up_cooldown.png")
+                                    *texture = asset_server.load("textures/up_cooldown.png");
                                 }
                                 CloudDir::Down => {
-                                    *texture = asset_server.load("textures/down_cooldown.png")
+                                    *texture = asset_server.load("textures/down_cooldown.png");
                                 }
                                 CloudDir::Left => {
-                                    *texture = asset_server.load("textures/left_cooldown.png")
+                                    *texture = asset_server.load("textures/left_cooldown.png");
                                 }
                                 CloudDir::Right => {
-                                    *texture = asset_server.load("textures/right_cooldown.png")
+                                    *texture = asset_server.load("textures/right_cooldown.png");
                                 }
                             }
                             is_cooling.val = true;
@@ -1317,27 +1329,27 @@ fn push_clouds(
                     player_control.player_pos = [
                         player_control.player_pos[0],
                         player_control.player_pos[1] + 1,
-                    ]
+                    ];
                 }
                 CloudDir::Down => {
                     player_control.player_pos = [
                         player_control.player_pos[0],
                         player_control.player_pos[1] - 1,
-                    ]
+                    ];
                 }
                 CloudDir::Left => {
                     player_control.player_pos = [
                         player_control.player_pos[0] - 1,
                         player_control.player_pos[1],
-                    ]
+                    ];
                 }
                 CloudDir::Right => {
                     player_control.player_pos = [
                         player_control.player_pos[0] + 1,
                         player_control.player_pos[1],
-                    ]
+                    ];
                 }
-            };
+            }
             grid_state.grid[pos[0] as usize][pos[1] as usize] = TileOccupation::Empty;
             grid_state.grid[player_control.player_pos[0] as usize]
                 [player_control.player_pos[1] as usize] = TileOccupation::Player;
@@ -1397,7 +1409,7 @@ fn set_cloud_direction(mut cloud_control: ResMut<CloudControl>, main_clock: Res<
         if cloud_control.spawn_counter[dir_index(uw_cloud_dir) as usize] == 0 {
             cloud_control.cur_new_cloud = cloud_dir;
         } else {
-            cloud_control.cur_new_cloud = None
+            cloud_control.cur_new_cloud = None;
         }
     }
 }
@@ -1421,7 +1433,7 @@ fn set_up_logic(mut commands: Commands, audio_assets: Res<AudioAssets>) {
         player_pos: INIT_POS,
         input_buffer: [GameControl::Idle; MAX_BUFFER_INPUT],
         timer: Timer::from_seconds(
-            beat_length / TIMER_SCALE_FACTOR as f32,
+            beat_length / (TIMER_SCALE_FACTOR as f32),
             TimerMode::Repeating,
         ),
         special_control: 0,
@@ -1429,7 +1441,7 @@ fn set_up_logic(mut commands: Commands, audio_assets: Res<AudioAssets>) {
     commands.insert_resource(GridState::default());
     commands.insert_resource(MainClock {
         main_timer: Timer::from_seconds(
-            beat_length / TIMER_SCALE_FACTOR as f32,
+            beat_length / (TIMER_SCALE_FACTOR as f32),
             TimerMode::Repeating,
         ),
         absolute_timer: Timer::from_seconds(song_length + intro_length, TimerMode::Repeating),
@@ -1452,8 +1464,37 @@ fn set_up_logic(mut commands: Commands, audio_assets: Res<AudioAssets>) {
     });
 }
 
-fn update_cloud_pos(mut query: Query<(&mut GridPos, &mut Transform), (With<Cloud>,)>) {
-    for (cloud_pos, mut transfo) in query.iter_mut() {
-        transfo.translation = grid_to_vec(cloud_pos.pos);
+fn update_cloud_pos(
+    mut commands: Commands,
+    mut query: Query<(&mut GridPos, &mut Transform, Entity, &mut Animation), (With<Cloud>,)>,
+) {
+    for (cloud_pos, mut transfo, entity, mut animation) in query.iter_mut() {
+        match animation.state {
+            AnimationState::Init | AnimationState::End => {
+                commands.entity(entity).insert(transfo.ease_to(
+                    Transform::from_translation(grid_to_vec(cloud_pos.pos)),
+                    CLOUD_EASING,
+                    bevy_easings::EasingType::Once {
+                        duration: std::time::Duration::from_millis(CLOUD_EASING_DURATION),
+                    },
+                ));
+                animation.state = AnimationState::Move;
+            }
+            AnimationState::Move => (),
+        }
+        // transfo.translation = grid_to_vec(cloud_pos.pos);
+    }
+}
+
+fn finish_move(
+    mut removed: RemovedComponents<EasingComponent<Transform>>,
+    mut query: Query<(&mut Animation, Entity)>,
+) {
+    for del_entity in removed.iter() {
+        for (mut animation, entity) in query.iter_mut() {
+            if entity == del_entity {
+                animation.state = AnimationState::End;
+            }
+        }
     }
 }

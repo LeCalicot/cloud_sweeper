@@ -4,28 +4,16 @@
 
 use bevy::prelude::*;
 use bevy::window::{PresentMode, PrimaryWindow, WindowResolution};
-// use bevy::prelude::{
-//     App, ClearColor, Color, ImagePlugin, Msaa, NonSend, PluginGroup, WindowDescriptor,
-// };
-// use bevy::render::texture::ImageSettings;
 use bevy::winit::WinitWindows;
 use bevy::DefaultPlugins;
 use bevy::{
     prelude::*,
     window::{Window, WindowPlugin},
 };
+use bevy_easings::EasingsPlugin;
 use cloud_sweeper::GamePlugin;
 use std::io::Cursor;
 use winit::window::{Icon, WindowId};
-
-// WIP: in debug mode, lose after 5s, make the retry button work properly
-// TODO: bug, when in a corner, doesn't detect lose condition
-
-// TODO: add lose condition when the player is totally surrounded
-// TODO: limit the player buffer to 2 moves per 2 beats?
-// IDEA: add item spawing to accelerate the speed, add clouds, destroy clouds, revert everything
-// TODO: make the menu actuallly quit
-// TODO: add tweaning
 
 pub const TILE_SIZE: f32 = 16.;
 pub const DISPLAY_RATIO: f32 = 1. / 4.;
@@ -41,7 +29,7 @@ fn main() {
                         mode: bevy::window::WindowMode::Windowed,
                         resizable: false,
                         resolution: WindowResolution::new(
-                            10.5 * TILE_SIZE / DISPLAY_RATIO,
+                            11. * TILE_SIZE / DISPLAY_RATIO,
                             10. * TILE_SIZE / DISPLAY_RATIO,
                         )
                         .with_scale_factor_override(1.0),
@@ -56,6 +44,7 @@ fn main() {
                 }),
         )
         .insert_resource(Msaa::Off)
+        .add_plugin(EasingsPlugin)
         .insert_resource(ClearColor(Color::rgb(0., 0., 0.)))
         .add_plugin(GamePlugin)
         .add_startup_system(set_window_icon)

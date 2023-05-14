@@ -41,7 +41,7 @@ pub const SONG_2: SongInfo = SongInfo {
 pub struct InstanceHandle {
     pub handle: Handle<AudioInstance>,
 }
-// WIP: finish this replacement.
+
 // This plugin is responsible to control the game audio
 impl Plugin for InternalAudioPlugin {
     fn build(&self, app: &mut App) {

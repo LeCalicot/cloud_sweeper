@@ -1,5 +1,6 @@
 use crate::audio::{SONG_1, SONG_2};
 use crate::loading::{AudioAssets, TextureAssets};
+use crate::logic::CLOUD_EASING;
 use crate::{
     actions::GameControl,
     logic::{CloudControl, GridState, PUSH_COOLDOWN_FACTOR},
@@ -7,6 +8,7 @@ use crate::{
     GameState,
 };
 use bevy::prelude::*;
+use bevy_easings::EaseFunction;
 use colored::*;
 
 pub const CLOUD_LAYER: f32 = 9.;
@@ -51,6 +53,19 @@ pub struct IsCooldown {
     pub val: bool,
 }
 
+#[derive(Default, Eq, PartialEq, Debug, Copy, Clone)]
+pub enum AnimationState {
+    #[default]
+    Init,   
+    Move,
+    End,
+}
+
+#[derive(Component)]
+pub struct Animation {
+    pub state: AnimationState,
+}
+
 #[derive(Component, Deref, DerefMut)]
 pub struct CooldownTimer {
     pub timer: Timer,
@@ -91,6 +106,9 @@ pub fn new_cloud(
                         .insert(IsCooldown { val: false })
                         .insert(GridPos {
                             pos: cloud_pos_grid,
+                        })
+                        .insert(Animation {
+                            state: AnimationState::Init,
                         });
                 }
                 CloudDir::Left => {
@@ -113,6 +131,9 @@ pub fn new_cloud(
                         .insert(IsCooldown { val: false })
                         .insert(GridPos {
                             pos: cloud_pos_grid,
+                        })
+                        .insert(Animation {
+                            state: AnimationState::Init,
                         });
                 }
                 CloudDir::Up => {
@@ -133,6 +154,9 @@ pub fn new_cloud(
                         .insert(Cloud { dir: CloudDir::Up })
                         .insert(GridPos {
                             pos: cloud_pos_grid,
+                        })
+                        .insert(Animation {
+                            state: AnimationState::Init,
                         });
                 }
                 CloudDir::Right => {
@@ -155,6 +179,9 @@ pub fn new_cloud(
                         .insert(IsCooldown { val: false })
                         .insert(GridPos {
                             pos: cloud_pos_grid,
+                        })
+                        .insert(Animation {
+                            state: AnimationState::Init,
                         });
                 }
             }
