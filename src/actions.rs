@@ -34,7 +34,7 @@ fn set_movement_actions(mut actions: ResMut<Actions>, keyboard_input: Res<Input<
         }
     };
     if received_input != GameControl::Idle {
-        println!("{} {} {:?}", { "➤".blue() }, { "BBB:".blue() }, {
+        println!("{} {} {:?}", { "➤".blue() }, { "ZZZ:".green() }, {
             received_input
         });
         debug!("new input: {received_input:?}");
@@ -68,9 +68,6 @@ fn match_input(keyboard_input: Res<Input<KeyCode>>) -> GameControl {
         return GameControl::Right;
     }
     if keyboard_input.just_pressed(KeyCode::Space) {
-        println!("{} {} {:?}", { "➤".blue() }, { "AAA:".blue() }, {
-            "space pressed"
-        });
         return GameControl::Special;
     }
     GameControl::Idle

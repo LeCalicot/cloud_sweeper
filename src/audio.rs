@@ -71,8 +71,8 @@ fn play_music(audio_assets: Res<AudioAssets>, audio: Res<Audio>, mut commands: C
 
 fn play_debug_beep_on_spawn(
     main_clock: Res<MainClock>,
-    audio_assets: Res<AudioAssets>,
-    audio: Res<Audio>,
+    _audio_assets: Res<AudioAssets>,
+    _audio: Res<Audio>,
 ) {
     if main_clock.move_clouds {
         // audio.play(audio_assets.debug_beep.clone());

@@ -1,12 +1,13 @@
 #![cfg_attr(debug_assertions, allow(dead_code, unused_imports))]
 
 use crate::actions::{Actions, GameControl};
-use crate::clouds::CloudDir;
+use crate::clouds::{Animation, AnimationState, CloudDir};
 use crate::loading::TextureAssets;
 use crate::logic::{CloudControl, GridState, PushState, TileOccupation, MAX_BUFFER_INPUT};
 use crate::world::{STAGE_BL, STAGE_UR};
 use crate::GameState;
 use bevy::prelude::*;
+use bevy_easings::*;
 // use bevy::render::texture::ImageSettings;
 use colored::*;
 
@@ -14,18 +15,22 @@ pub const TILE_SIZE: f32 = 16.;
 pub const PLAYER_LAYER: f32 = 10.;
 pub const INIT_POS: [i8; 2] = [5i8, 5i8];
 pub const BUFFER_SIZE: usize = 2;
+pub const PLAYER_EASING: bevy_easings::EaseFunction = bevy_easings::EaseFunction::QuadraticIn;
+// Duration of the easing for the clouds in ms:
+pub const PLAYER_EASING_DURATION: u64 = 50;
 
 pub struct PlayerPlugin;
 
 /// Contains the info about the player
 ///
-/// The bufferis a FIFO, with the oldest element at index 0.
+/// The buffer is a FIFO, with the oldest element at index 0.
 #[derive(Default, Resource)]
 pub struct PlayerControl {
     pub input_buffer: [GameControl; MAX_BUFFER_INPUT],
     pub special_control: u8,
     pub player_pos: [i8; BUFFER_SIZE],
     pub timer: Timer,
+    pub animation: AnimationState,
 }
 
 #[derive(Component, Default)]
@@ -38,6 +43,7 @@ pub struct Player {
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_system(spawn_player.in_schedule(OnEnter(GameState::Playing)))
+            .add_system(finish_player_move.run_if(in_state(GameState::Playing)))
             .add_systems(
                 (
                     animate_sprite.run_if(in_state(GameState::Playing)),
@@ -125,17 +131,52 @@ pub fn fill_player_buffer(mut actions: ResMut<Actions>, mut player_control: ResM
 }
 
 pub fn move_player(
-    mut player_query: Query<&mut Transform, With<Player>>,
-    player_control: Res<PlayerControl>,
+    mut commands: Commands,
+    mut player_query: Query<(&Transform, Entity), With<Player>>,
+    mut player_control: ResMut<PlayerControl>,
 ) {
     let pl_grid_pos = player_control.player_pos;
-    for mut transform in player_query.iter_mut() {
-        transform.translation = Vec3::new(
+    for (transform, entity) in player_query.iter_mut() {
+        let new_pos = Vec3::new(
             (f32::from(pl_grid_pos[0]) - INIT_POS[0] as f32) * TILE_SIZE + TILE_SIZE / 2.
                 - TILE_SIZE / 2.,
             (f32::from(pl_grid_pos[1]) - INIT_POS[1] as f32) * TILE_SIZE + TILE_SIZE / 2.,
             PLAYER_LAYER,
         );
+        match player_control.animation {
+            AnimationState::End => {
+                commands.entity(entity).insert(transform.ease_to(
+                    Transform::from_translation(new_pos),
+                    PLAYER_EASING,
+                    bevy_easings::EasingType::Once {
+                        duration: std::time::Duration::from_millis(PLAYER_EASING_DURATION),
+                    },
+                ));
+                player_control.animation = AnimationState::Move;
+            }
+            AnimationState::Move => (),
+            // This is used to avoid the Player sprite to ease in towards the center at spawn time:
+            AnimationState::Init => {
+                commands
+                    .entity(entity)
+                    .insert(Transform::from_translation(new_pos));
+                player_control.animation = AnimationState::End;
+            }
+        }
+    }
+}
+
+fn finish_player_move(
+    mut removed: RemovedComponents<EasingComponent<Transform>>,
+    mut query: Query<Entity, With<Player>>,
+    mut player_control: ResMut<PlayerControl>,
+) {
+    for del_entity in removed.iter() {
+        for entity in query.iter_mut() {
+            if entity == del_entity {
+                player_control.animation = AnimationState::End;
+            }
+        }
     }
 }
 

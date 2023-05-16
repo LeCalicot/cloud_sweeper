@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use crate::actions::{Actions, GameControl};
 use crate::audio::{InstanceHandle, SONG_1, SONG_2};
-use crate::clouds::{self, Animation, AnimationState};
+use crate::clouds::{self, Animation, AnimationState, ToDespawn};
 use crate::clouds::{
     Cloud, CloudDir, CooldownTimer, DownCloud, GridPos, IsCooldown, LeftCloud, RightCloud, UpCloud,
     CLOUD_LAYER,
@@ -60,6 +60,8 @@ enum LogicSystem {
     MoveClouds,
     PushClouds,
     UpdateSprites,
+    RemoveClouds,
+    FinishEasings,
 }
 
 /// This plugin handles player related stuff like movement
@@ -105,13 +107,23 @@ impl Plugin for LogicPlugin {
             .add_systems(
                 (
                     update_cloud_pos.run_if(in_state(GameState::Playing)),
-                    despawn_clouds.run_if(in_state(GameState::Playing)),
                     count_clouds.run_if(in_state(GameState::Playing)),
                 )
                     .in_set(LogicSystem::UpdateSprites)
                     .after(LogicSystem::PushClouds),
             )
-            .add_system(finish_move.run_if(in_state(GameState::Playing)));
+            .add_system(
+                despawn_clouds
+                    .run_if(in_state(GameState::Playing))
+                    .in_set(LogicSystem::RemoveClouds)
+                    .after(LogicSystem::UpdateSprites),
+            )
+            .add_system(
+                finish_move
+                    .run_if(in_state(GameState::Playing))
+                    .in_set(LogicSystem::FinishEasings)
+                    .after(LogicSystem::RemoveClouds),
+            );
     }
 }
 
@@ -169,10 +181,10 @@ fn tick_timers(
         crate::audio::SelectedSong::Song1 => SONG_1.beat_length,
         crate::audio::SelectedSong::Song2 => SONG_2.beat_length,
     };
-    let song_length = match audio_assets.selected_song {
-        crate::audio::SelectedSong::Song1 => SONG_1.length,
-        crate::audio::SelectedSong::Song2 => SONG_2.length,
-    };
+    // let song_length = match audio_assets.selected_song {
+    //     crate::audio::SelectedSong::Song1 => SONG_1.length,
+    //     crate::audio::SelectedSong::Song2 => SONG_2.length,
+    // };
     let intro_length = match audio_assets.selected_song {
         crate::audio::SelectedSong::Song1 => SONG_1.intro_length,
         crate::audio::SelectedSong::Song2 => SONG_2.intro_length,
@@ -625,7 +637,6 @@ impl GridState {
 
 /// Check whether the player cannot move at all, then it loses.
 fn check_lose_condition(
-    mut commands: Commands,
     grid_state: ResMut<GridState>,
     player_control: ResMut<PlayerControl>,
     mut next_state: ResMut<NextState<GameState>>,
@@ -690,6 +701,7 @@ fn despawn_clouds(
     mut commands: Commands,
     mut grid_state: ResMut<GridState>,
     mut query: Query<(&mut GridPos, Entity), (With<Cloud>,)>,
+    query_2: Query<Entity, (With<ToDespawn>,)>,
 ) {
     for (cloud_pos, entity) in query.iter_mut() {
         if grid_state.grid[cloud_pos.pos[0] as usize][cloud_pos.pos[1] as usize]
@@ -699,6 +711,9 @@ fn despawn_clouds(
                 TileOccupation::Empty;
             commands.entity(entity).despawn();
         }
+    }
+    for entity in query_2.iter() {
+        commands.entity(entity).despawn();
     }
 }
 
@@ -1029,9 +1044,6 @@ fn play_special(
     if player_control.special_control < SPECIAL_ACTIVATION_NB {
         return;
     }
-    println!("{} {} {:?}", { "➤".blue() }, { "CCC:".blue() }, {
-        player_control.special_control
-    });
 
     let pl_pos = player_control.player_pos;
     let adj_clouds = [
@@ -1049,8 +1061,6 @@ fn play_special(
             // Change the cloud direction
             grid_state.grid[pos[0] as usize][pos[1] as usize] = adj_clouds[ndx].1;
 
-            // //Remove the component:
-            // let cloud_type = grid_state.grid[grid_pos.pos[0] as usize][grid_pos.pos[1] as usize];
             match cloud.dir {
                 CloudDir::Up => commands.entity(entity).remove::<UpCloud>(),
                 CloudDir::Down => commands.entity(entity).remove::<DownCloud>(),
@@ -1171,7 +1181,12 @@ fn push_clouds(
             if cloud_pos.pos == pos {
                 // If cloud to be pushed out of the board, despawn it instantly:
                 if push_type == PushState::PushOver {
-                    commands.entity(entity).despawn();
+                    commands
+                        .entity(entity)
+                        .insert(Transform::from_translation(Vec3::new(
+                            -9999., -9999., -9999.,
+                        )))
+                        .insert(ToDespawn);
                     grid_state.grid[cloud_pos.pos[0] as usize][cloud_pos.pos[1] as usize] =
                         TileOccupation::Empty;
                     continue;
@@ -1437,6 +1452,7 @@ fn set_up_logic(mut commands: Commands, audio_assets: Res<AudioAssets>) {
             TimerMode::Repeating,
         ),
         special_control: 0,
+        animation: AnimationState::Init,
     });
     commands.insert_resource(GridState::default());
     commands.insert_resource(MainClock {
@@ -1466,9 +1482,9 @@ fn set_up_logic(mut commands: Commands, audio_assets: Res<AudioAssets>) {
 
 fn update_cloud_pos(
     mut commands: Commands,
-    mut query: Query<(&mut GridPos, &mut Transform, Entity, &mut Animation), (With<Cloud>,)>,
+    mut query: Query<(&mut GridPos, &Transform, Entity, &mut Animation), (With<Cloud>,)>,
 ) {
-    for (cloud_pos, mut transfo, entity, mut animation) in query.iter_mut() {
+    for (cloud_pos, transfo, entity, mut animation) in query.iter_mut() {
         match animation.state {
             AnimationState::Init | AnimationState::End => {
                 commands.entity(entity).insert(transfo.ease_to(
@@ -1488,7 +1504,7 @@ fn update_cloud_pos(
 
 fn finish_move(
     mut removed: RemovedComponents<EasingComponent<Transform>>,
-    mut query: Query<(&mut Animation, Entity)>,
+    mut query: Query<(&mut Animation, Entity), With<Cloud>>,
 ) {
     for del_entity in removed.iter() {
         for (mut animation, entity) in query.iter_mut() {

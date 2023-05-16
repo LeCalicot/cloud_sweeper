@@ -39,6 +39,9 @@ pub struct UpCloud;
 #[derive(Component)]
 pub struct DownCloud;
 
+#[derive(Component)]
+pub struct ToDespawn;
+
 #[derive(Default, Eq, PartialEq, Debug, Copy, Clone)]
 pub enum CloudDir {
     #[default]
@@ -56,7 +59,7 @@ pub struct IsCooldown {
 #[derive(Default, Eq, PartialEq, Debug, Copy, Clone)]
 pub enum AnimationState {
     #[default]
-    Init,   
+    Init,
     Move,
     End,
 }
