@@ -46,8 +46,10 @@ pub const CLOUD_COUNT_LOSE_COND: usize = 16;
 pub const FORGIVENESS_MARGIN: f32 = 0.05;
 pub const SPECIAL_ACTIVATION_NB: u8 = 2;
 pub const CLOUD_EASING: bevy_easings::EaseFunction = bevy_easings::EaseFunction::QuadraticIn;
+pub const CLOUD_SCALE_EASING: bevy_easings::EaseFunction = bevy_easings::EaseFunction::QuadraticIn;
+pub const CLOUD_SCALE_FACTOR_EASING: f32 = 2.;
 // Duration of the easing for the clouds in ms:
-pub const CLOUD_EASING_DURATION: u64 = 100;
+pub const CLOUD_EASING_DURATION: std::time::Duration = std::time::Duration::from_millis(100);
 
 pub struct LogicPlugin;
 
@@ -119,7 +121,7 @@ impl Plugin for LogicPlugin {
                     .after(LogicSystem::UpdateSprites),
             )
             .add_system(
-                finish_move
+                finish_easings
                     .run_if(in_state(GameState::Playing))
                     .in_set(LogicSystem::FinishEasings)
                     .after(LogicSystem::RemoveClouds),
@@ -328,7 +330,6 @@ fn reset_cooldown_timers(
     for (mut timer, grid_pos, mut status, mut texture) in left_query.iter_mut() {
         timer.tick(time.delta());
         if timer.finished() {
-            // grid_pos.status.val = false;
             let pos = grid_pos.pos;
             grid_state.grid[pos[0] as usize][pos[1] as usize] = TileOccupation::LeftCloud;
             *texture = asset_server.load("textures/left_cloud.png");
@@ -826,6 +827,7 @@ fn move_clouds(
                             [cloud_pos.pos[0], cloud_pos.pos[1] - 1i8],
                             TileOccupation::DownCloud,
                         );
+                        cloud_pos.old_pos = cloud_pos.pos;
                         cloud_pos.pos[1] += -1i8;
                     }
                     PushState::CanPush => {
@@ -882,6 +884,7 @@ fn move_clouds(
                             [cloud_pos.pos[0] - 1i8, cloud_pos.pos[1]],
                             TileOccupation::LeftCloud,
                         );
+                        cloud_pos.old_pos = cloud_pos.pos;
                         cloud_pos.pos[0] += -1i8;
                     }
                     PushState::CanPush => {
@@ -938,6 +941,7 @@ fn move_clouds(
                             [cloud_pos.pos[0], cloud_pos.pos[1] + 1i8],
                             TileOccupation::UpCloud,
                         );
+                        cloud_pos.old_pos = cloud_pos.pos;
                         cloud_pos.pos[1] += 1i8;
                     }
                     PushState::CanPush => {
@@ -994,6 +998,7 @@ fn move_clouds(
                             [cloud_pos.pos[0] + 1i8, cloud_pos.pos[1]],
                             TileOccupation::RightCloud,
                         );
+                        cloud_pos.old_pos = cloud_pos.pos;
                         cloud_pos.pos[0] += 1i8;
                     }
                     PushState::CanPush => {
@@ -1225,6 +1230,7 @@ fn push_clouds(
                                 }
                             },
                         );
+                        cloud_pos.old_pos = cloud_pos.pos;
                         cloud_pos.pos[1] += -1i8;
                     }
                     CloudDir::Left => {
@@ -1259,6 +1265,7 @@ fn push_clouds(
                                 }
                             },
                         );
+                        cloud_pos.old_pos = cloud_pos.pos;
                         cloud_pos.pos[0] += -1i8;
                     }
                     CloudDir::Right => {
@@ -1293,6 +1300,7 @@ fn push_clouds(
                                 }
                             },
                         );
+                        cloud_pos.old_pos = cloud_pos.pos;
                         cloud_pos.pos[0] += 1i8;
                     }
                     CloudDir::Up => {
@@ -1327,6 +1335,7 @@ fn push_clouds(
                                 }
                             },
                         );
+                        cloud_pos.old_pos = cloud_pos.pos;
                         cloud_pos.pos[1] += 1i8;
                     }
                 }
@@ -1380,6 +1389,7 @@ fn push_clouds(
                             [cloud_pos.pos[0], cloud_pos.pos[1] - 1i8],
                             dir_to_tile(dir),
                         );
+                        cloud_pos.old_pos = cloud_pos.pos;
                         cloud_pos.pos[1] += -1i8;
                     }
                     CloudDir::Left => {
@@ -1388,6 +1398,7 @@ fn push_clouds(
                             [cloud_pos.pos[0] - 1i8, cloud_pos.pos[1]],
                             dir_to_tile(dir),
                         );
+                        cloud_pos.old_pos = cloud_pos.pos;
                         cloud_pos.pos[0] += -1i8;
                     }
                     CloudDir::Right => {
@@ -1396,6 +1407,7 @@ fn push_clouds(
                             [cloud_pos.pos[0] + 1i8, cloud_pos.pos[1]],
                             dir_to_tile(dir),
                         );
+                        cloud_pos.old_pos = cloud_pos.pos;
                         cloud_pos.pos[0] += 1i8;
                     }
                     CloudDir::Up => {
@@ -1404,6 +1416,7 @@ fn push_clouds(
                             [cloud_pos.pos[0], cloud_pos.pos[1] + 1i8],
                             dir_to_tile(dir),
                         );
+                        cloud_pos.old_pos = cloud_pos.pos;
                         cloud_pos.pos[1] += 1i8;
                     }
                 }
@@ -1480,29 +1493,68 @@ fn set_up_logic(mut commands: Commands, audio_assets: Res<AudioAssets>) {
     });
 }
 
+#[allow(clippy::type_complexity)]
 fn update_cloud_pos(
     mut commands: Commands,
-    mut query: Query<(&mut GridPos, &Transform, Entity, &mut Animation), (With<Cloud>,)>,
+    mut query: Query<
+        (
+            &mut GridPos,
+            &Transform,
+            Entity,
+            &mut Animation,
+            &mut Sprite,
+        ),
+        (With<Cloud>,),
+    >,
 ) {
-    for (cloud_pos, transfo, entity, mut animation) in query.iter_mut() {
+    for (mut cloud_pos, transfo, entity, mut animation, sprite) in query.iter_mut() {
         match animation.state {
             AnimationState::Init | AnimationState::End => {
-                commands.entity(entity).insert(transfo.ease_to(
-                    Transform::from_translation(grid_to_vec(cloud_pos.pos)),
-                    CLOUD_EASING,
-                    bevy_easings::EasingType::Once {
-                        duration: std::time::Duration::from_millis(CLOUD_EASING_DURATION),
-                    },
-                ));
-                animation.state = AnimationState::Move;
+                // Only perform the easings if the cloud has moved:
+                if cloud_pos.pos != cloud_pos.old_pos {
+                    let mut orig_sprite = sprite.clone();
+                    let mut bigger_sprite = sprite.clone();
+                    bigger_sprite.custom_size =
+                        Some(Vec2::new(TILE_SIZE, TILE_SIZE) * CLOUD_SCALE_FACTOR_EASING);
+                    orig_sprite.custom_size = Some(Vec2::new(TILE_SIZE, TILE_SIZE));
+                    let orig_sprite_copy = orig_sprite.clone();
+
+                    commands
+                        .entity(entity)
+                        .insert(transfo.ease_to(
+                            Transform::from_translation(grid_to_vec(cloud_pos.pos)),
+                            CLOUD_EASING,
+                            bevy_easings::EasingType::Once {
+                                duration: CLOUD_EASING_DURATION,
+                            },
+                        ))
+                        .insert(
+                            orig_sprite
+                                .ease_to(
+                                    bigger_sprite,
+                                    CLOUD_SCALE_EASING,
+                                    EasingType::Once {
+                                        duration: CLOUD_EASING_DURATION / 2,
+                                    },
+                                )
+                                .ease_to(
+                                    orig_sprite_copy,
+                                    CLOUD_SCALE_EASING,
+                                    EasingType::Once {
+                                        duration: CLOUD_EASING_DURATION / 2,
+                                    },
+                                ),
+                        );
+                    animation.state = AnimationState::Move;
+                    cloud_pos.old_pos = cloud_pos.pos;
+                }
             }
             AnimationState::Move => (),
         }
-        // transfo.translation = grid_to_vec(cloud_pos.pos);
     }
 }
 
-fn finish_move(
+fn finish_easings(
     mut removed: RemovedComponents<EasingComponent<Transform>>,
     mut query: Query<(&mut Animation, Entity), With<Cloud>>,
 ) {

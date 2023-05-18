@@ -47,8 +47,8 @@ impl Plugin for MenuPlugin {
             .add_system(click_quit_button.run_if(in_state(GameState::GameOver)));
         #[cfg(debug_assertions)]
         {
-            app.init_resource::<DebugVariables>();
-            // .add_system(debug_start_auto.run_if(in_state(GameState::Menu)))
+            app.init_resource::<DebugVariables>()
+                .add_system(debug_start_auto.run_if(in_state(GameState::Menu)));
             // .add_system(debug_auto_loss.run_if(in_state(GameState::Playing)));
 
             // /.add_plugin(FrameTimeDiagnosticsPlugin::default())

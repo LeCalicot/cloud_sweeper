@@ -27,6 +27,7 @@ pub struct Cloud {
 #[derive(Component)]
 pub struct GridPos {
     pub pos: [i8; 2],
+    pub old_pos: [i8; 2],
 }
 
 #[derive(Component)]
@@ -109,6 +110,7 @@ pub fn new_cloud(
                         .insert(IsCooldown { val: false })
                         .insert(GridPos {
                             pos: cloud_pos_grid,
+                            old_pos: cloud_pos_grid,
                         })
                         .insert(Animation {
                             state: AnimationState::Init,
@@ -134,6 +136,7 @@ pub fn new_cloud(
                         .insert(IsCooldown { val: false })
                         .insert(GridPos {
                             pos: cloud_pos_grid,
+                            old_pos: cloud_pos_grid,
                         })
                         .insert(Animation {
                             state: AnimationState::Init,
@@ -157,6 +160,7 @@ pub fn new_cloud(
                         .insert(Cloud { dir: CloudDir::Up })
                         .insert(GridPos {
                             pos: cloud_pos_grid,
+                            old_pos: cloud_pos_grid,
                         })
                         .insert(Animation {
                             state: AnimationState::Init,
@@ -182,6 +186,7 @@ pub fn new_cloud(
                         .insert(IsCooldown { val: false })
                         .insert(GridPos {
                             pos: cloud_pos_grid,
+                            old_pos: cloud_pos_grid,
                         })
                         .insert(Animation {
                             state: AnimationState::Init,
