@@ -324,22 +324,22 @@ pub fn pop_player_buffer(
                         CloudDir::Up => cloud_control.next_pushed_clouds.push((
                             player_new_pos,
                             action_direction,
-                            PushState::CanPushPlayer,
+                            PushState::PlayerCanPush,
                         )),
                         CloudDir::Down => cloud_control.next_pushed_clouds.push((
                             player_new_pos,
                             action_direction,
-                            PushState::CanPushPlayer,
+                            PushState::PlayerCanPush,
                         )),
                         CloudDir::Left => cloud_control.next_pushed_clouds.push((
                             player_new_pos,
                             action_direction,
-                            PushState::CanPushPlayer,
+                            PushState::PlayerCanPush,
                         )),
                         CloudDir::Right => cloud_control.next_pushed_clouds.push((
                             player_new_pos,
                             action_direction,
-                            PushState::CanPushPlayer,
+                            PushState::PlayerCanPush,
                         )),
                     };
                 }

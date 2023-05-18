@@ -135,7 +135,7 @@ pub enum PushState {
     Empty,
     Blocked,
     CanPush,
-    CanPushPlayer,
+    PlayerCanPush,
     Despawn,
     PushOver,
 }
@@ -828,6 +828,7 @@ fn move_clouds(
                             TileOccupation::DownCloud,
                         );
                         cloud_pos.old_pos = cloud_pos.pos;
+                        cloud_pos.is_pushed = false;
                         cloud_pos.pos[1] += -1i8;
                     }
                     PushState::CanPush => {
@@ -838,12 +839,12 @@ fn move_clouds(
                             PushState::CanPush,
                         ));
                     }
-                    PushState::CanPushPlayer => {
+                    PushState::PlayerCanPush => {
                         cloud_control.pushed_clouds.push((cloud_pos.pos, cloud_dir));
                         cloud_control.next_pushed_clouds.push((
                             [cloud_pos.pos[0], cloud_pos.pos[1] - 1],
                             cloud_dir,
-                            PushState::CanPushPlayer,
+                            PushState::PlayerCanPush,
                         ));
                     }
                     PushState::PushOver => {
@@ -885,6 +886,7 @@ fn move_clouds(
                             TileOccupation::LeftCloud,
                         );
                         cloud_pos.old_pos = cloud_pos.pos;
+                        cloud_pos.is_pushed = false;
                         cloud_pos.pos[0] += -1i8;
                     }
                     PushState::CanPush => {
@@ -895,12 +897,12 @@ fn move_clouds(
                             PushState::CanPush,
                         ));
                     }
-                    PushState::CanPushPlayer => {
+                    PushState::PlayerCanPush => {
                         cloud_control.pushed_clouds.push((cloud_pos.pos, cloud_dir));
                         cloud_control.next_pushed_clouds.push((
                             [cloud_pos.pos[0] - 1, cloud_pos.pos[1]],
                             cloud_dir,
-                            PushState::CanPushPlayer,
+                            PushState::PlayerCanPush,
                         ));
                     }
                     PushState::PushOver => {
@@ -942,6 +944,7 @@ fn move_clouds(
                             TileOccupation::UpCloud,
                         );
                         cloud_pos.old_pos = cloud_pos.pos;
+                        cloud_pos.is_pushed = false;
                         cloud_pos.pos[1] += 1i8;
                     }
                     PushState::CanPush => {
@@ -952,12 +955,12 @@ fn move_clouds(
                             PushState::CanPush,
                         ));
                     }
-                    PushState::CanPushPlayer => {
+                    PushState::PlayerCanPush => {
                         cloud_control.pushed_clouds.push((cloud_pos.pos, cloud_dir));
                         cloud_control.next_pushed_clouds.push((
                             [cloud_pos.pos[0], cloud_pos.pos[1] + 1],
                             cloud_dir,
-                            PushState::CanPushPlayer,
+                            PushState::PlayerCanPush,
                         ));
                     }
                     PushState::PushOver => {
@@ -999,6 +1002,7 @@ fn move_clouds(
                             TileOccupation::RightCloud,
                         );
                         cloud_pos.old_pos = cloud_pos.pos;
+                        cloud_pos.is_pushed = false;
                         cloud_pos.pos[0] += 1i8;
                     }
                     PushState::CanPush => {
@@ -1009,12 +1013,12 @@ fn move_clouds(
                             PushState::CanPush,
                         ));
                     }
-                    PushState::CanPushPlayer => {
+                    PushState::PlayerCanPush => {
                         cloud_control.pushed_clouds.push((cloud_pos.pos, cloud_dir));
                         cloud_control.next_pushed_clouds.push((
                             [cloud_pos.pos[0] + 1, cloud_pos.pos[1]],
                             cloud_dir,
-                            PushState::CanPushPlayer,
+                            PushState::PlayerCanPush,
                         ));
                     }
                     PushState::PushOver => {
@@ -1199,7 +1203,7 @@ fn push_clouds(
 
                 match dir {
                     CloudDir::Down => {
-                        if push_type == PushState::CanPushPlayer {
+                        if push_type == PushState::PlayerCanPush {
                             match cloud.dir {
                                 CloudDir::Up => {
                                     *texture = asset_server.load("textures/up_cooldown.png");
@@ -1219,7 +1223,7 @@ fn push_clouds(
                         grid_state.move_on_grid(
                             cloud_pos.pos,
                             [cloud_pos.pos[0], cloud_pos.pos[1] - 1i8],
-                            if push_type == PushState::CanPushPlayer {
+                            if push_type == PushState::PlayerCanPush {
                                 TileOccupation::CooldownCloud
                             } else {
                                 match cloud.dir {
@@ -1230,11 +1234,12 @@ fn push_clouds(
                                 }
                             },
                         );
+                        cloud_pos.is_pushed = true;
                         cloud_pos.old_pos = cloud_pos.pos;
                         cloud_pos.pos[1] += -1i8;
                     }
                     CloudDir::Left => {
-                        if push_type == PushState::CanPushPlayer {
+                        if push_type == PushState::PlayerCanPush {
                             match cloud.dir {
                                 CloudDir::Up => {
                                     *texture = asset_server.load("textures/up_cooldown.png");
@@ -1254,7 +1259,7 @@ fn push_clouds(
                         grid_state.move_on_grid(
                             cloud_pos.pos,
                             [cloud_pos.pos[0] - 1i8, cloud_pos.pos[1]],
-                            if push_type == PushState::CanPushPlayer {
+                            if push_type == PushState::PlayerCanPush {
                                 TileOccupation::CooldownCloud
                             } else {
                                 match cloud.dir {
@@ -1265,11 +1270,12 @@ fn push_clouds(
                                 }
                             },
                         );
+                        cloud_pos.is_pushed = true;
                         cloud_pos.old_pos = cloud_pos.pos;
                         cloud_pos.pos[0] += -1i8;
                     }
                     CloudDir::Right => {
-                        if push_type == PushState::CanPushPlayer {
+                        if push_type == PushState::PlayerCanPush {
                             match cloud.dir {
                                 CloudDir::Up => {
                                     *texture = asset_server.load("textures/up_cooldown.png");
@@ -1289,7 +1295,7 @@ fn push_clouds(
                         grid_state.move_on_grid(
                             cloud_pos.pos,
                             [cloud_pos.pos[0] + 1i8, cloud_pos.pos[1]],
-                            if push_type == PushState::CanPushPlayer {
+                            if push_type == PushState::PlayerCanPush {
                                 TileOccupation::CooldownCloud
                             } else {
                                 match cloud.dir {
@@ -1300,11 +1306,12 @@ fn push_clouds(
                                 }
                             },
                         );
+                        cloud_pos.is_pushed = true;
                         cloud_pos.old_pos = cloud_pos.pos;
                         cloud_pos.pos[0] += 1i8;
                     }
                     CloudDir::Up => {
-                        if push_type == PushState::CanPushPlayer {
+                        if push_type == PushState::PlayerCanPush {
                             match cloud.dir {
                                 CloudDir::Up => {
                                     *texture = asset_server.load("textures/up_cooldown.png");
@@ -1324,7 +1331,7 @@ fn push_clouds(
                         grid_state.move_on_grid(
                             cloud_pos.pos,
                             [cloud_pos.pos[0], cloud_pos.pos[1] + 1i8],
-                            if push_type == PushState::CanPushPlayer {
+                            if push_type == PushState::PlayerCanPush {
                                 TileOccupation::CooldownCloud
                             } else {
                                 match cloud.dir {
@@ -1335,6 +1342,7 @@ fn push_clouds(
                                 }
                             },
                         );
+                        cloud_pos.is_pushed = true;
                         cloud_pos.old_pos = cloud_pos.pos;
                         cloud_pos.pos[1] += 1i8;
                     }
@@ -1389,6 +1397,7 @@ fn push_clouds(
                             [cloud_pos.pos[0], cloud_pos.pos[1] - 1i8],
                             dir_to_tile(dir),
                         );
+                        cloud_pos.is_pushed = false;
                         cloud_pos.old_pos = cloud_pos.pos;
                         cloud_pos.pos[1] += -1i8;
                     }
@@ -1398,6 +1407,7 @@ fn push_clouds(
                             [cloud_pos.pos[0] - 1i8, cloud_pos.pos[1]],
                             dir_to_tile(dir),
                         );
+                        cloud_pos.is_pushed = false;
                         cloud_pos.old_pos = cloud_pos.pos;
                         cloud_pos.pos[0] += -1i8;
                     }
@@ -1407,6 +1417,7 @@ fn push_clouds(
                             [cloud_pos.pos[0] + 1i8, cloud_pos.pos[1]],
                             dir_to_tile(dir),
                         );
+                        cloud_pos.is_pushed = false;
                         cloud_pos.old_pos = cloud_pos.pos;
                         cloud_pos.pos[0] += 1i8;
                     }
@@ -1416,6 +1427,7 @@ fn push_clouds(
                             [cloud_pos.pos[0], cloud_pos.pos[1] + 1i8],
                             dir_to_tile(dir),
                         );
+                        cloud_pos.is_pushed = false;
                         cloud_pos.old_pos = cloud_pos.pos;
                         cloud_pos.pos[1] += 1i8;
                     }
@@ -1510,25 +1522,16 @@ fn update_cloud_pos(
     for (mut cloud_pos, transfo, entity, mut animation, sprite) in query.iter_mut() {
         match animation.state {
             AnimationState::Init | AnimationState::End => {
-                // Only perform the easings if the cloud has moved:
                 if cloud_pos.pos != cloud_pos.old_pos {
-                    let mut orig_sprite = sprite.clone();
-                    let mut bigger_sprite = sprite.clone();
-                    bigger_sprite.custom_size =
-                        Some(Vec2::new(TILE_SIZE, TILE_SIZE) * CLOUD_SCALE_FACTOR_EASING);
-                    orig_sprite.custom_size = Some(Vec2::new(TILE_SIZE, TILE_SIZE));
-                    let orig_sprite_copy = orig_sprite.clone();
-
-                    commands
-                        .entity(entity)
-                        .insert(transfo.ease_to(
-                            Transform::from_translation(grid_to_vec(cloud_pos.pos)),
-                            CLOUD_EASING,
-                            bevy_easings::EasingType::Once {
-                                duration: CLOUD_EASING_DURATION,
-                            },
-                        ))
-                        .insert(
+                    // Only do a "burst" if the cloud move by itself:
+                    if !cloud_pos.is_pushed {
+                        let mut orig_sprite = sprite.clone();
+                        let mut bigger_sprite = sprite.clone();
+                        bigger_sprite.custom_size =
+                            Some(Vec2::new(TILE_SIZE, TILE_SIZE) * CLOUD_SCALE_FACTOR_EASING);
+                        orig_sprite.custom_size = Some(Vec2::new(TILE_SIZE, TILE_SIZE));
+                        let orig_sprite_copy = orig_sprite.clone();
+                        commands.entity(entity).insert(
                             orig_sprite
                                 .ease_to(
                                     bigger_sprite,
@@ -1545,6 +1548,15 @@ fn update_cloud_pos(
                                     },
                                 ),
                         );
+                    }
+                    // Smooth translation for any kind of move:
+                    commands.entity(entity).insert(transfo.ease_to(
+                        Transform::from_translation(grid_to_vec(cloud_pos.pos)),
+                        CLOUD_EASING,
+                        bevy_easings::EasingType::Once {
+                            duration: CLOUD_EASING_DURATION,
+                        },
+                    ));
                     animation.state = AnimationState::Move;
                     cloud_pos.old_pos = cloud_pos.pos;
                 }
