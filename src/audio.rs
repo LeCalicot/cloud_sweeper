@@ -84,9 +84,9 @@ fn play_sound_on_move(
     // audio_assets: Res<AudioAssets>,
 ) {
     for _ in play_sound_events.iter() {
-        println!("{} {} {:?}", { "➤".blue() }, { "AAA:".blue() }, {
-            "move"
-        });
+        // println!("{} {} {:?}", { "➤".blue() }, { "AAA:".blue() }, {
+        //     "move"
+        // });
         // audio.play(audio_assets.sample_1_c.clone());
     }
 }
@@ -100,29 +100,29 @@ fn play_sound_on_push(
     for event in play_sound_events.iter() {
         match event.direction {
             GameControl::Up => {
-                audio.play(audio_assets.sample_1_a.clone());
+                audio.play(audio_assets.sample_1_a.clone()).with_volume(3.);
             }
             GameControl::Down => {
-                audio.play(audio_assets.sample_1_b.clone());
+                audio.play(audio_assets.sample_1_b.clone()).with_volume(3.);
             }
             GameControl::Left => {
-                audio.play(audio_assets.sample_1_c.clone());
+                audio.play(audio_assets.sample_1_c.clone()).with_volume(3.);
             }
             GameControl::Right => {
-                audio.play(audio_assets.sample_1_d.clone());
+                audio.play(audio_assets.sample_1_d.clone()).with_volume(3.);
             }
             GameControl::Special => {
                 if sound_tracker.special_ndx >= 4 {
                     sound_tracker.special_ndx = 0
                 }
                 if sound_tracker.special_ndx == 0 {
-                    audio.play(audio_assets.sample_3_a.clone());
+                    audio.play(audio_assets.sample_3_a.clone()).with_volume(3.);
                 } else if sound_tracker.special_ndx == 1 {
-                    audio.play(audio_assets.sample_3_c.clone());
+                    audio.play(audio_assets.sample_3_c.clone()).with_volume(3.);
                 } else if sound_tracker.special_ndx == 2 {
-                    audio.play(audio_assets.sample_3_b.clone());
+                    audio.play(audio_assets.sample_3_b.clone()).with_volume(3.);
                 } else if sound_tracker.special_ndx == 3 {
-                    audio.play(audio_assets.sample_3_d.clone());
+                    audio.play(audio_assets.sample_3_d.clone()).with_volume(3.);
                 }
                 sound_tracker.special_ndx += 1;
             }
