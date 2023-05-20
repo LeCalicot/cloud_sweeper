@@ -1,10 +1,12 @@
 #![cfg_attr(debug_assertions, allow(dead_code, unused_imports))]
 
 use crate::actions::{Actions, GameControl};
-use crate::audio::{SoundOnMove, SoundOnPush};
+use crate::audio::{SoundOnAction, SoundOnMove};
 use crate::clouds::{Animation, AnimationState, CloudDir};
 use crate::loading::TextureAssets;
-use crate::logic::{CloudControl, GridState, PushState, TileOccupation, MAX_BUFFER_INPUT};
+use crate::logic::{
+    CloudControl, GridState, PushState, TileOccupation, MAX_BUFFER_INPUT, SPECIAL_TIMEOUT,
+};
 use crate::world::{STAGE_BL, STAGE_UR};
 use crate::GameState;
 use bevy::prelude::*;
@@ -30,7 +32,8 @@ pub struct PlayerControl {
     pub input_buffer: [GameControl; MAX_BUFFER_INPUT],
     pub special_control: u8,
     pub player_pos: [i8; BUFFER_SIZE],
-    pub timer: Timer,
+    pub input_timer: Timer,
+    pub special_timeout: u8,
     pub animation: AnimationState,
 }
 
@@ -220,12 +223,12 @@ pub fn pop_player_buffer(
     mut player_control: ResMut<PlayerControl>,
     time: Res<Time>,
     mut play_move_sound_event: EventWriter<SoundOnMove>,
-    mut play_push_sound_event: EventWriter<SoundOnPush>,
+    mut play_push_sound_event: EventWriter<SoundOnAction>,
 ) {
     // timers gotta be ticked, to work
-    player_control.timer.tick(time.delta());
+    player_control.input_timer.tick(time.delta());
 
-    if player_control.timer.just_finished() {
+    if player_control.input_timer.just_finished() {
         let player_action = player_control.input_buffer[0];
         player_control.input_buffer[0] = GameControl::Idle;
         player_control.input_buffer.rotate_left(1);
@@ -299,6 +302,7 @@ pub fn pop_player_buffer(
                 GameControl::Idle => (player_control.player_pos, CloudDir::Right, PushState::Empty),
                 GameControl::Special => {
                     player_control.special_control += 1;
+                    player_control.special_timeout = 0;
                     (
                         player_control.player_pos,
                         CloudDir::Down,
@@ -325,31 +329,57 @@ pub fn pop_player_buffer(
                         .pushed_clouds
                         .push((player_old_pos, action_direction));
                     match action_direction {
-                        CloudDir::Up => cloud_control.next_pushed_clouds.push((
-                            player_new_pos,
-                            action_direction,
-                            PushState::PlayerCanPush,
-                        )),
-                        CloudDir::Down => cloud_control.next_pushed_clouds.push((
-                            player_new_pos,
-                            action_direction,
-                            PushState::PlayerCanPush,
-                        )),
-                        CloudDir::Left => cloud_control.next_pushed_clouds.push((
-                            player_new_pos,
-                            action_direction,
-                            PushState::PlayerCanPush,
-                        )),
-                        CloudDir::Right => cloud_control.next_pushed_clouds.push((
-                            player_new_pos,
-                            action_direction,
-                            PushState::PlayerCanPush,
-                        )),
+                        CloudDir::Up => {
+                            play_push_sound_event.send(SoundOnAction {
+                                direction: GameControl::Down,
+                            });
+                            cloud_control.next_pushed_clouds.push((
+                                player_new_pos,
+                                action_direction,
+                                PushState::PlayerCanPush,
+                            ))
+                        }
+                        CloudDir::Down => {
+                            play_push_sound_event.send(SoundOnAction {
+                                direction: GameControl::Up,
+                            });
+                            cloud_control.next_pushed_clouds.push((
+                                player_new_pos,
+                                action_direction,
+                                PushState::PlayerCanPush,
+                            ))
+                        }
+                        CloudDir::Left => {
+                            play_push_sound_event.send(SoundOnAction {
+                                direction: GameControl::Right,
+                            });
+                            cloud_control.next_pushed_clouds.push((
+                                player_new_pos,
+                                action_direction,
+                                PushState::PlayerCanPush,
+                            ))
+                        }
+                        CloudDir::Right => {
+                            play_push_sound_event.send(SoundOnAction {
+                                direction: GameControl::Left,
+                            });
+                            cloud_control.next_pushed_clouds.push((
+                                player_new_pos,
+                                action_direction,
+                                PushState::PlayerCanPush,
+                            ))
+                        }
                     };
                     play_push_sound_event.send_default();
                 }
                 _ => {}
             }
+        }
+        player_control.special_timeout += 1;
+        // if the special is not used soon enough, it expires:
+        if player_control.special_timeout >= SPECIAL_TIMEOUT {
+            player_control.special_timeout = 0;
+            player_control.special_control = 0;
         }
     };
 }

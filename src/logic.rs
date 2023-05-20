@@ -3,7 +3,7 @@
 use std::time::Duration;
 
 use crate::actions::{Actions, GameControl};
-use crate::audio::{SongHandle, SoundOnMove, SoundOnPush, SONG_1, SONG_2};
+use crate::audio::{SongHandle, SoundOnAction, SoundOnMove, SONG_1, SONG_2};
 use crate::clouds::{self, Animation, AnimationState, ToDespawn};
 use crate::clouds::{
     Cloud, CloudDir, CooldownTimer, DownCloud, GridPos, IsCooldown, LeftCloud, RightCloud, UpCloud,
@@ -50,6 +50,7 @@ pub const CLOUD_SCALE_EASING: bevy_easings::EaseFunction = bevy_easings::EaseFun
 pub const CLOUD_SCALE_FACTOR_EASING: f32 = 2.;
 // Duration of the easing for the clouds in ms:
 pub const CLOUD_EASING_DURATION: std::time::Duration = std::time::Duration::from_millis(100);
+pub const SPECIAL_TIMEOUT: u8 = 4;
 
 pub struct LogicPlugin;
 
@@ -127,7 +128,7 @@ impl Plugin for LogicPlugin {
                     .after(LogicSystem::RemoveClouds),
             )
             .add_event::<SoundOnMove>()
-            .add_event::<SoundOnPush>();
+            .add_event::<SoundOnAction>();
     }
 }
 
@@ -1043,6 +1044,7 @@ fn play_special(
     mut commands: Commands,
     mut player_control: ResMut<PlayerControl>,
     asset_server: Res<AssetServer>,
+    mut play_push_sound_event: EventWriter<SoundOnAction>,
     mut grid_state: ResMut<GridState>,
     mut query: Query<(
         Entity,
@@ -1055,6 +1057,10 @@ fn play_special(
     if player_control.special_control < SPECIAL_ACTIVATION_NB {
         return;
     }
+    play_push_sound_event.send(SoundOnAction {
+        direction: GameControl::Special,
+    });
+    player_control.special_timeout = 0;
 
     let pl_pos = player_control.player_pos;
     let adj_clouds = [
@@ -1474,11 +1480,12 @@ fn set_up_logic(mut commands: Commands, audio_assets: Res<AudioAssets>) {
     commands.insert_resource(PlayerControl {
         player_pos: INIT_POS,
         input_buffer: [GameControl::Idle; MAX_BUFFER_INPUT],
-        timer: Timer::from_seconds(
+        input_timer: Timer::from_seconds(
             beat_length / (TIMER_SCALE_FACTOR as f32),
             TimerMode::Repeating,
         ),
         special_control: 0,
+        special_timeout: 0,
         animation: AnimationState::Init,
     });
     commands.insert_resource(GridState::default());
