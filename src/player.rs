@@ -1,6 +1,7 @@
 #![cfg_attr(debug_assertions, allow(dead_code, unused_imports))]
 
 use crate::actions::{Actions, GameControl};
+use crate::audio::{SoundOnMove, SoundOnPush};
 use crate::clouds::{Animation, AnimationState, CloudDir};
 use crate::loading::TextureAssets;
 use crate::logic::{CloudControl, GridState, PushState, TileOccupation, MAX_BUFFER_INPUT};
@@ -218,6 +219,8 @@ pub fn pop_player_buffer(
     mut grid_state: ResMut<GridState>,
     mut player_control: ResMut<PlayerControl>,
     time: Res<Time>,
+    mut play_move_sound_event: EventWriter<SoundOnMove>,
+    mut play_push_sound_event: EventWriter<SoundOnPush>,
 ) {
     // timers gotta be ticked, to work
     player_control.timer.tick(time.delta());
@@ -314,6 +317,7 @@ pub fn pop_player_buffer(
                         TileOccupation::Empty;
                     grid_state.grid[player_new_pos[0] as usize][player_new_pos[1] as usize] =
                         TileOccupation::Player;
+                    play_move_sound_event.send_default();
                 }
                 PushState::Blocked => {}
                 PushState::CanPush => {
@@ -342,6 +346,7 @@ pub fn pop_player_buffer(
                             PushState::PlayerCanPush,
                         )),
                     };
+                    play_push_sound_event.send_default();
                 }
                 _ => {}
             }

@@ -35,14 +35,38 @@ pub struct AudioAssets {
     pub selected_song: SelectedSong,
     #[asset(path = "audio/song_1/song_full.wav.ron")]
     pub song_1: Handle<AudioSource>,
-    #[asset(path = "audio/song_1/sample_1.wav.ron")]
-    pub song_1_sample_1: Handle<AudioSource>,
-    #[asset(path = "audio/song_1/sample_2.wav.ron")]
-    pub song_1_sample_2: Handle<AudioSource>,
+    // #[asset(path = "audio/song_1/sample_1.wav.ron")]
+    // pub song_1_sample_1: Handle<AudioSource>,
+    // #[asset(path = "audio/song_1/sample_2.wav.ron")]
+    // pub song_1_sample_2: Handle<AudioSource>,
     #[asset(path = "audio/song_2/song_full.wav.ron")]
     pub song_2: Handle<AudioSource>,
     #[asset(path = "audio/debug_beep_200ms.wav.ron")]
     pub debug_beep: Handle<AudioSource>,
+    #[asset(path = "audio/song_2/sample_1_a.wav")]
+    pub sample_1_a: Handle<AudioSource>,
+    #[asset(path = "audio/song_2/sample_1_b.wav")]
+    pub sample_1_b: Handle<AudioSource>,
+    #[asset(path = "audio/song_2/sample_1_c.wav")]
+    pub sample_1_c: Handle<AudioSource>,
+    #[asset(path = "audio/song_2/sample_1_d.wav")]
+    pub sample_1_d: Handle<AudioSource>,
+    #[asset(path = "audio/song_2/sample_2_a.wav")]
+    pub sample_2_a: Handle<AudioSource>,
+    #[asset(path = "audio/song_2/sample_2_b.wav")]
+    pub sample_2_b: Handle<AudioSource>,
+    #[asset(path = "audio/song_2/sample_2_c.wav")]
+    pub sample_2_c: Handle<AudioSource>,
+    #[asset(path = "audio/song_2/sample_2_d.wav")]
+    pub sample_2_d: Handle<AudioSource>,
+    #[asset(path = "audio/song_2/sample_3_a.wav")]
+    pub sample_3_a: Handle<AudioSource>,
+    #[asset(path = "audio/song_2/sample_3_b.wav")]
+    pub sample_3_b: Handle<AudioSource>,
+    #[asset(path = "audio/song_2/sample_3_c.wav")]
+    pub sample_3_c: Handle<AudioSource>,
+    #[asset(path = "audio/song_2/sample_3_d.wav")]
+    pub sample_3_d: Handle<AudioSource>,
 }
 
 #[derive(AssetCollection, Resource)]

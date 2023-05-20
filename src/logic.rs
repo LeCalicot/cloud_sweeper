@@ -3,7 +3,7 @@
 use std::time::Duration;
 
 use crate::actions::{Actions, GameControl};
-use crate::audio::{InstanceHandle, SONG_1, SONG_2};
+use crate::audio::{SongHandle, SoundOnMove, SoundOnPush, SONG_1, SONG_2};
 use crate::clouds::{self, Animation, AnimationState, ToDespawn};
 use crate::clouds::{
     Cloud, CloudDir, CooldownTimer, DownCloud, GridPos, IsCooldown, LeftCloud, RightCloud, UpCloud,
@@ -125,7 +125,9 @@ impl Plugin for LogicPlugin {
                     .run_if(in_state(GameState::Playing))
                     .in_set(LogicSystem::FinishEasings)
                     .after(LogicSystem::RemoveClouds),
-            );
+            )
+            .add_event::<SoundOnMove>()
+            .add_event::<SoundOnPush>();
     }
 }
 
@@ -175,7 +177,7 @@ fn tick_timers(
     mut main_clock: ResMut<MainClock>,
     time: Res<Time>,
     mut audio_instances: ResMut<Assets<AudioInstance>>,
-    handle: Res<InstanceHandle>,
+    handle: Res<SongHandle>,
     audio_assets: Res<AudioAssets>,
 ) {
     /* ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ Constants ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ */
@@ -192,8 +194,8 @@ fn tick_timers(
         crate::audio::SelectedSong::Song2 => SONG_2.intro_length,
     };
     /* ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ Retrieve the audio timing ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ */
-    let play_pos = if audio_instances.get_mut(&handle.handle).is_some() {
-        audio_instances.state(&handle.handle).position()
+    let play_pos = if audio_instances.get_mut(&handle.song).is_some() {
+        audio_instances.state(&handle.song).position()
     } else {
         None
     };
