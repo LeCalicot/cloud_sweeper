@@ -10,16 +10,21 @@ use bevy::app::AppExit;
 use bevy::prelude::*;
 use bevy::text::BreakLineOn;
 use bevy::window::close_on_esc;
+use bevy_easings::Ease;
 use bevy_kira_audio::prelude::*;
 use bevy_kira_audio::{Audio, AudioEasing, AudioTween};
 // use {AlignItems, BackgroundColor, JustifyContent, UiRect};
+use crate::world::{Platform, Sky, CAMERA_LAYER, DISPLAY_RATIO};
+use std::time::Duration;
 
 #[cfg(debug_assertions)]
 const AUTOSTART_TIME_MS: u64 = 1000;
 const BACKGROUND_SPEED_S: u64 = 50;
 const BACKGROUND_OFFSET: [f32; 2] = [0., 0.];
-use crate::world::{Platform, Sky, CAMERA_LAYER, DISPLAY_RATIO};
-use std::time::Duration;
+const MAX_SHADOW: f32 = 0.6;
+const SHADOW_PERIOD: std::time::Duration = Duration::from_secs(30);
+const SLIDE_PERIOD: std::time::Duration = Duration::from_secs(23);
+const SHADOW_LAYER: f32 = 10.;
 
 #[cfg(debug_assertions)]
 #[derive(Resource, Default)]
@@ -394,4 +399,40 @@ fn spawn_background(
             ..default()
         })
         .insert(Background::default());
+
+    commands.spawn((
+        SpriteBundle {
+            transform: Transform::from_translation(Vec3::new(0., 0., SHADOW_LAYER)),
+            ..Default::default()
+        },
+        Sprite {
+            custom_size: Some(Vec2::new(window_width, window_height)),
+            color: Color::Rgba {
+                red: 0.,
+                green: 0.,
+                blue: 0.,
+                alpha: 0.,
+            },
+            ..Default::default()
+        }
+        .ease_to(
+            Sprite {
+                custom_size: Some(Vec2::new(window_width, window_height)),
+                color: Color::Rgba {
+                    red: 0.,
+                    green: 0.,
+                    blue: 0.,
+                    alpha: MAX_SHADOW,
+                },
+                ..Default::default()
+            },
+            bevy_easings::EaseFunction::SineInOut,
+            bevy_easings::EasingType::PingPong {
+                duration: SHADOW_PERIOD,
+                pause: None,
+            },
+        ),
+    ));
 }
+
+// WIP: add black filter on the background darkening slowly the sky
