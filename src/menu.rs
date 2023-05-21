@@ -20,11 +20,13 @@ use std::time::Duration;
 #[cfg(debug_assertions)]
 const AUTOSTART_TIME_MS: u64 = 1000;
 const BACKGROUND_SPEED_S: u64 = 50;
-const BACKGROUND_OFFSET: [f32; 2] = [0., 0.];
+// const BACKGROUND_OFFSET: [f32; 2] = [0., 0.];
 const MAX_SHADOW: f32 = 0.6;
 const SHADOW_PERIOD: std::time::Duration = Duration::from_secs(30);
-const SLIDE_PERIOD: std::time::Duration = Duration::from_secs(23);
+const SLIDE_PERIOD: std::time::Duration = Duration::from_secs(20);
 const SHADOW_LAYER: f32 = 10.;
+
+// WIP:make the background cycle
 
 #[cfg(debug_assertions)]
 #[derive(Resource, Default)]
@@ -46,8 +48,8 @@ impl Default for Background {
     fn default() -> Self {
         Background {
             speed: BACKGROUND_SPEED_S,
-            x_pos: BACKGROUND_OFFSET[0],
-            y_pos: BACKGROUND_OFFSET[1],
+            x_pos: 0.,
+            y_pos: 0.,
         }
     }
 }
@@ -387,17 +389,43 @@ fn spawn_background(
     let scale_factor = window_height / image_size[1] * DISPLAY_RATIO;
 
     let offset = Transform::from_translation(Vec3 {
-        x: BACKGROUND_OFFSET[0],
-        y: BACKGROUND_OFFSET[1],
+        x: -(image_size[0] * DISPLAY_RATIO - window_width) / 2.,
+        y: 0.,
         z: 0.,
     })
     .with_scale(Vec3::splat(scale_factor));
+
+    println!(
+        "{} {} {:?} {:?} {:?}",
+        { colored::Colorize::blue("➤") },
+        { colored::Colorize::blue("AAA:") },
+        { window_width },
+        { image_size[0] },
+        { (image_size[0] - window_width) / 2. }
+    );
+
     commands
-        .spawn(SpriteBundle {
-            texture: image,
-            transform: offset,
-            ..default()
-        })
+        .spawn((
+            SpriteBundle {
+                texture: image,
+                transform: offset,
+                ..default()
+            },
+            // Add the background sliding
+            offset.ease_to(
+                Transform::from_translation(Vec3::new(
+                    (image_size[0] * DISPLAY_RATIO - window_width) / 2.,
+                    0.,
+                    0.,
+                ))
+                .with_scale(Vec3::splat(scale_factor)),
+                bevy_easings::EaseFunction::SineInOut,
+                bevy_easings::EasingType::PingPong {
+                    duration: SLIDE_PERIOD,
+                    pause: None,
+                },
+            ),
+        ))
         .insert(Background::default());
 
     commands.spawn((
