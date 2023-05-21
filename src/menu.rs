@@ -11,7 +11,7 @@ use bevy::text::BreakLineOn;
 use bevy::window::close_on_esc;
 use bevy_kira_audio::prelude::*;
 use bevy_kira_audio::{Audio, AudioEasing, AudioTween};
-use {AlignItems, BackgroundColor, JustifyContent, UiRect};
+// use {AlignItems, BackgroundColor, JustifyContent, UiRect};
 
 #[cfg(debug_assertions)]
 const AUTOSTART_TIME_MS: u64 = 1000;
@@ -323,7 +323,15 @@ fn game_over_screen(
 }
 
 #[allow(clippy::type_complexity)]
-fn game_over_clear(
+fn game_over_clear(mut commands: Commands, audio: Res<Audio>) {
+    audio.stop().fade_out(AudioTween::new(
+        Duration::from_secs(1),
+        AudioEasing::InOutPowi(2),
+    ));
+}
+
+#[allow(clippy::type_complexity)]
+fn exit_game_over_menu(
     mut commands: Commands,
     mut query: Query<
         Entity,
@@ -334,22 +342,10 @@ fn game_over_clear(
             With<Platform>,
             With<MessBar>,
             With<MessTile>,
+            With<Button>,
+            With<GameOver>,
         )>,
     >,
-    audio: Res<Audio>,
-) {
-    for entity in query.iter_mut() {
-        commands.entity(entity).despawn();
-    }
-    audio.stop().fade_out(AudioTween::new(
-        Duration::from_secs(1),
-        AudioEasing::InOutPowi(2),
-    ));
-}
-
-fn exit_game_over_menu(
-    mut commands: Commands,
-    mut query: Query<Entity, (With<Button>, With<GameOver>)>,
 ) {
     for entity in query.iter_mut() {
         commands.entity(entity).despawn_recursive();

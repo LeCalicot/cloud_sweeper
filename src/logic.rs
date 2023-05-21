@@ -1452,9 +1452,9 @@ fn set_cloud_direction(mut cloud_control: ResMut<CloudControl>, main_clock: Res<
         cloud_control.cur_cloud_move = cloud_dir;
 
         let uw_cloud_dir = cloud_dir.unwrap();
-        cloud_control.spawn_counter[dir_index(uw_cloud_dir) as usize] =
-            (cloud_control.spawn_counter[dir_index(uw_cloud_dir) as usize] + 1) % SPAWN_FREQUENCY;
-        if cloud_control.spawn_counter[dir_index(uw_cloud_dir) as usize] == 0 {
+        cloud_control.spawn_counter[dir_index(uw_cloud_dir)] =
+            (cloud_control.spawn_counter[dir_index(uw_cloud_dir)] + 1) % SPAWN_FREQUENCY;
+        if cloud_control.spawn_counter[dir_index(uw_cloud_dir)] == 0 {
             cloud_control.cur_new_cloud = cloud_dir;
         } else {
             cloud_control.cur_new_cloud = None;
