@@ -1,5 +1,6 @@
 #![cfg_attr(debug_assertions, allow(dead_code, unused_imports))]
 
+use crate::loading::TextureAssets;
 use crate::logic::GridState;
 use crate::player::Player;
 use crate::ui::{MessBar, MessTile};
@@ -15,6 +16,8 @@ use bevy_kira_audio::{Audio, AudioEasing, AudioTween};
 
 #[cfg(debug_assertions)]
 const AUTOSTART_TIME_MS: u64 = 1000;
+const BACKGROUND_SPEED_S: u64 = 50;
+const BACKGROUND_OFFSET: [f32; 2] = [0., 0.];
 use crate::world::{Platform, Sky, CAMERA_LAYER, DISPLAY_RATIO};
 use std::time::Duration;
 
@@ -27,6 +30,35 @@ struct DebugVariables {
 
 pub struct MenuPlugin;
 
+#[derive(Component)]
+pub struct Background {
+    speed: u64,
+    x_pos: f32,
+    y_pos: f32,
+}
+
+impl Default for Background {
+    fn default() -> Self {
+        Background {
+            speed: BACKGROUND_SPEED_S,
+            x_pos: BACKGROUND_OFFSET[0],
+            y_pos: BACKGROUND_OFFSET[1],
+        }
+    }
+}
+
+#[derive(Resource)]
+struct ButtonColors {
+    normal: BackgroundColor,
+    hovered: BackgroundColor,
+}
+
+#[derive(Component)]
+pub struct GameOver;
+#[derive(Component)]
+pub struct MainMenu;
+#[derive(Component)]
+pub struct QuitGame;
 /// This plugin is responsible for the game menu (containing only one button...)
 /// The menu is only drawn during the State `GameState::Menu` and is removed when that state is exited
 impl Plugin for MenuPlugin {
@@ -44,7 +76,8 @@ impl Plugin for MenuPlugin {
             .add_system(game_over_clear.in_schedule(OnEnter(GameState::GameOver)))
             .add_system(exit_game_over_menu.in_schedule(OnExit(GameState::GameOver)))
             .add_system(game_over_screen.run_if(in_state(GameState::GameOver)))
-            .add_system(click_quit_button.run_if(in_state(GameState::GameOver)));
+            .add_system(click_quit_button.run_if(in_state(GameState::GameOver)))
+            .add_system(spawn_background.in_schedule(OnEnter(GameState::Menu)));
         #[cfg(debug_assertions)]
         {
             app.init_resource::<DebugVariables>()
@@ -56,19 +89,6 @@ impl Plugin for MenuPlugin {
         }
     }
 }
-
-#[derive(Resource)]
-struct ButtonColors {
-    normal: BackgroundColor,
-    hovered: BackgroundColor,
-}
-
-#[derive(Component)]
-pub struct GameOver;
-#[derive(Component)]
-pub struct MainMenu;
-#[derive(Component)]
-pub struct QuitGame;
 
 impl Default for ButtonColors {
     fn default() -> Self {
@@ -194,12 +214,6 @@ fn debug_start_auto(
     use colored::Colorize;
 
     if time.elapsed() > Duration::from_millis(AUTOSTART_TIME_MS) && !debug_var.has_playing {
-        println!(
-            "{} {} {:?}",
-            { colored::Colorize::blue("➤") },
-            { "AAA:".blue() },
-            { "enter playing state" }
-        );
         debug_var.has_playing = true;
         next_state.set(GameState::Playing);
     }
@@ -350,4 +364,34 @@ fn exit_game_over_menu(
     for entity in query.iter_mut() {
         commands.entity(entity).despawn_recursive();
     }
+}
+
+fn spawn_background(
+    mut commands: Commands,
+    assets: Res<TextureAssets>,
+    query: Query<&mut Window>,
+    background_image: Res<Assets<Image>>,
+) {
+    let window = query.single();
+    let window_width = window.resolution.width();
+    let window_height = window.resolution.height();
+    let image = assets.background.clone();
+    let background_image = background_image.get(&image).unwrap();
+    let image_size = background_image.size();
+
+    let scale_factor = window_height / image_size[1] * DISPLAY_RATIO;
+
+    let offset = Transform::from_translation(Vec3 {
+        x: BACKGROUND_OFFSET[0],
+        y: BACKGROUND_OFFSET[1],
+        z: 0.,
+    })
+    .with_scale(Vec3::splat(scale_factor));
+    commands
+        .spawn(SpriteBundle {
+            texture: image,
+            transform: offset,
+            ..default()
+        })
+        .insert(Background::default());
 }

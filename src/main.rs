@@ -19,6 +19,8 @@ use winit::window::{Icon, WindowId};
 pub const TILE_SIZE: f32 = 16.;
 pub const DISPLAY_RATIO: f32 = 1. / 4.;
 
+// Add moving background
+
 fn main() {
     App::new()
         .add_plugins(
@@ -27,18 +29,14 @@ fn main() {
                 .set(WindowPlugin {
                     primary_window: Some(Window {
                         title: "Cloud Sweeper".into(),
-                        mode: bevy::window::WindowMode::Windowed,
-                        resizable: false,
-                        resolution: WindowResolution::new(
-                            11. * TILE_SIZE / DISPLAY_RATIO,
-                            10. * TILE_SIZE / DISPLAY_RATIO,
-                        )
-                        .with_scale_factor_override(1.0),
+                        mode: bevy::window::WindowMode::BorderlessFullscreen,
+                        // resizable: false,
+                        // resolution: WindowResolution::new(
+                        //     11. * TILE_SIZE / DISPLAY_RATIO,
+                        //     10. * TILE_SIZE / DISPLAY_RATIO,
+                        // ),
+                        resolution: WindowResolution::default().with_scale_factor_override(1.0),
                         present_mode: PresentMode::AutoVsync,
-                        // Tells wasm to resize the window according to the available canvas
-                        fit_canvas_to_parent: true,
-                        // Tells wasm not to override default event handling, like F5, Ctrl+R etc.
-                        prevent_default_event_handling: false,
                         ..default()
                     }),
                     ..default()
