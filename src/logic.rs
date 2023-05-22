@@ -109,7 +109,9 @@ impl Plugin for LogicPlugin {
             )
             .add_systems(
                 (
-                    update_cloud_pos.run_if(in_state(GameState::Playing)),
+                    update_cloud_pos.run_if(
+                        in_state(GameState::Playing).or_else(in_state(GameState::GameOver)),
+                    ),
                     count_clouds.run_if(in_state(GameState::Playing)),
                 )
                     .in_set(LogicSystem::UpdateSprites)
@@ -173,6 +175,22 @@ pub struct MainClock {
     forgiveness_margin: f32,
     cloud_counter: u8,
 }
+
+#[derive(Default, Eq, PartialEq, Debug, Copy, Clone)]
+pub enum LossCondition {
+    #[default]
+    NoLoss,
+    TooMessy,
+    Stuck,
+}
+
+#[derive(Component)]
+pub struct LossCause;
+
+// #[derive(Default, Resource)]
+// pub struct LoseInformation {
+//     pub condition: LoseCondition,
+// }
 
 fn tick_timers(
     mut main_clock: ResMut<MainClock>,
@@ -390,8 +408,7 @@ pub struct CloudControl {
 pub struct GridState {
     pub grid: [[TileOccupation; LEVEL_SIZE as usize]; LEVEL_SIZE as usize],
     pub cloud_count: u8,
-    // pushed_clouds: Vec<([i8; 2], CloudDir)>,
-    // next_pushed_clouds: Vec<([i8; 2], CloudDir)>,
+    pub loss_condition: LossCondition,
 }
 
 impl CloudControl {
@@ -411,6 +428,7 @@ impl Default for GridState {
         GridState {
             grid: tmp_grid,
             cloud_count: 0,
+            loss_condition: LossCondition::NoLoss,
         }
     }
 }
@@ -641,9 +659,11 @@ impl GridState {
 
 /// Check whether the player cannot move at all, then it loses.
 fn check_lose_condition(
-    grid_state: ResMut<GridState>,
+    mut commands: Commands,
+    mut grid_state: ResMut<GridState>,
     player_control: ResMut<PlayerControl>,
     mut next_state: ResMut<NextState<GameState>>,
+    mut query: Query<(Entity, &mut GridPos), With<Cloud>>,
 ) {
     let next_tiles = [
         [
@@ -665,15 +685,23 @@ fn check_lose_condition(
     ];
     let mut is_blocked = [false, false, false, false];
 
+    let mut has_lost = false;
     for (i, tile) in next_tiles.into_iter().enumerate() {
         is_blocked[i] = matches!(
             grid_state.is_occupied(tile, SEQUENCE[i], TileOccupation::Player),
             PushState::Blocked
         );
-        let has_lost = is_blocked.into_iter().all(|x| x);
-        if has_lost {
-            next_state.set(GameState::GameOver);
+        has_lost = is_blocked.into_iter().all(|x| x);
+    }
+    if has_lost {
+        for (entity, pos) in query.iter_mut() {
+            if next_tiles.contains(&pos.pos) {
+                commands.entity(entity).insert(LossCause);
+            }
         }
+
+        grid_state.loss_condition = LossCondition::Stuck;
+        next_state.set(GameState::GameOver);
     }
 }
 

@@ -1,8 +1,8 @@
 #![cfg_attr(debug_assertions, allow(dead_code, unused_imports))]
 
 use crate::loading::TextureAssets;
-use crate::logic::GridState;
-use crate::player::Player;
+use crate::logic::{GridState, LossCause};
+use crate::player::{Player, TILE_SIZE};
 use crate::ui::{MessBar, MessTile};
 use crate::GameState;
 use crate::{clouds::Cloud, loading::FontAssets};
@@ -10,7 +10,7 @@ use bevy::app::AppExit;
 use bevy::prelude::*;
 use bevy::text::BreakLineOn;
 use bevy::window::close_on_esc;
-use bevy_easings::Ease;
+use bevy_easings::{Ease, EasingType};
 use bevy_kira_audio::prelude::*;
 use bevy_kira_audio::{Audio, AudioEasing, AudioTween};
 // use {AlignItems, BackgroundColor, JustifyContent, UiRect};
@@ -23,10 +23,14 @@ const BACKGROUND_SPEED_S: u64 = 50;
 // const BACKGROUND_OFFSET: [f32; 2] = [0., 0.];
 const MAX_SHADOW: f32 = 0.6;
 const SHADOW_PERIOD: std::time::Duration = Duration::from_secs(30);
-const SLIDE_PERIOD: std::time::Duration = Duration::from_secs(20);
+const SLIDE_PERIOD: std::time::Duration = Duration::from_secs(40);
 const SHADOW_LAYER: f32 = 10.;
 
-// WIP:make the background cycle
+const GAMEOVER_EASING: bevy_easings::EaseFunction = bevy_easings::EaseFunction::SineInOut;
+const GAMEOVER_EASING_SCALE_FACTOR: f32 = 2.;
+const GAMEOVER_EASING_ROT: bevy_easings::EaseFunction = bevy_easings::EaseFunction::SineInOut;
+const GAMEOVER_EASING_ROT_ANGLE: f32 = 10. * std::f32::consts::PI / 180.;
+const GAMEOVER_EASING_DURATION: std::time::Duration = Duration::from_millis(500);
 
 #[cfg(debug_assertions)]
 #[derive(Resource, Default)]
@@ -84,6 +88,7 @@ impl Plugin for MenuPlugin {
             .add_system(exit_game_over_menu.in_schedule(OnExit(GameState::GameOver)))
             .add_system(game_over_screen.run_if(in_state(GameState::GameOver)))
             .add_system(click_quit_button.run_if(in_state(GameState::GameOver)))
+            .add_system(highlight_lose_condition.in_schedule(OnEnter(GameState::GameOver)))
             .add_system(spawn_background.in_schedule(OnEnter(GameState::Menu)));
         #[cfg(debug_assertions)]
         {
@@ -321,6 +326,46 @@ fn setup_game_over_screen(
         .insert(GameOver);
 }
 
+// WIP:
+// - how to set the size for the mess bar tiles?
+// - change the easing for the size
+// - use the rotation easing as well & make it rotate around the center of the entity
+// - Make sure that the previous easing (for cloud move) is finished
+// - let the move_cloud system finish (just don't update the grid!)
+// - Add a pause at the beginning of GameOver state
+// - remove background when restarting (now there are 2 entities)
+
+fn highlight_lose_condition(
+    mut commands: Commands,
+    mut query: Query<(&mut Transform, &mut Sprite, Entity), (With<LossCause>,)>,
+) {
+    for (transfo, sprite, entity) in query.iter_mut() {
+        let mut orig_sprite = sprite.clone();
+        orig_sprite.custom_size = Some(Vec2::new(TILE_SIZE, TILE_SIZE));
+        let mut bigger_sprite = sprite.clone();
+        bigger_sprite.custom_size =
+            Some(Vec2::new(TILE_SIZE, TILE_SIZE) * GAMEOVER_EASING_SCALE_FACTOR);
+        commands.entity(entity).insert(orig_sprite.ease_to(
+            bigger_sprite,
+            GAMEOVER_EASING,
+            EasingType::PingPong {
+                duration: GAMEOVER_EASING_DURATION,
+                pause: None,
+            },
+        ));
+        // let mut new_transfo = transfo.clone();
+        // new_transfo.rotation = Quat::from_axis_angle(Vec3::Z, -GAMEOVER_EASING_ROT_ANGLE);
+        // commands.entity(entity).insert(new_transfo.ease_to(
+        //     Transform::from_rotation(Quat::from_axis_angle(Vec3::Z, GAMEOVER_EASING_ROT_ANGLE)),
+        //     GAMEOVER_EASING_ROT,
+        //     EasingType::PingPong {
+        //         duration: GAMEOVER_EASING_DURATION,
+        //         pause: Some(GAMEOVER_EASING_DURATION / 2),
+        //     },
+        // ));
+    }
+}
+
 #[allow(clippy::type_complexity)]
 fn game_over_screen(
     mut interaction_query: Query<
@@ -386,14 +431,16 @@ fn spawn_background(
     let background_image = background_image.get(&image).unwrap();
     let image_size = background_image.size();
 
-    let scale_factor = window_height / image_size[1] * DISPLAY_RATIO;
+    let scale_factor = window_height / image_size[1];
+    // let scale_factor = window_height / image_size[1];
 
     let offset = Transform::from_translation(Vec3 {
-        x: -(image_size[0] * DISPLAY_RATIO - window_width) / 2.,
+        x: -(image_size[0] * scale_factor - window_width) * scale_factor / 2. * DISPLAY_RATIO,
+        // x: 0.,
         y: 0.,
         z: 0.,
     })
-    .with_scale(Vec3::splat(scale_factor));
+    .with_scale(Vec3::splat(scale_factor * DISPLAY_RATIO));
 
     println!(
         "{} {} {:?} {:?} {:?}",
@@ -401,7 +448,7 @@ fn spawn_background(
         { colored::Colorize::blue("AAA:") },
         { window_width },
         { image_size[0] },
-        { (image_size[0] - window_width) / 2. }
+        { offset }
     );
 
     commands
@@ -414,11 +461,12 @@ fn spawn_background(
             // Add the background sliding
             offset.ease_to(
                 Transform::from_translation(Vec3::new(
-                    (image_size[0] * DISPLAY_RATIO - window_width) / 2.,
+                    (image_size[0] * scale_factor - window_width) * scale_factor / 2.
+                        * DISPLAY_RATIO,
                     0.,
                     0.,
                 ))
-                .with_scale(Vec3::splat(scale_factor)),
+                .with_scale(Vec3::splat(scale_factor * DISPLAY_RATIO)),
                 bevy_easings::EaseFunction::SineInOut,
                 bevy_easings::EasingType::PingPong {
                     duration: SLIDE_PERIOD,

@@ -46,7 +46,9 @@ pub const SONG_1: SongInfo = SongInfo {
 
 pub const SONG_2: SongInfo = SongInfo {
     length: 60. - 2.4,
-    beat_length: 0.600,
+    // beat_length: 0.600,
+    //WIP
+    beat_length: 0.100,
     intro_length: 2.400,
 };
 

@@ -4,7 +4,7 @@ use bevy_ecs_tilemap::tiles::TileStorage;
 use colored::*;
 
 use crate::{
-    logic::{GridState, CLOUD_COUNT_LOSE_COND},
+    logic::{GridState, LossCause, LossCondition, CLOUD_COUNT_LOSE_COND},
     player::TILE_SIZE,
     world::LEVEL_SIZE,
     GameState,
@@ -89,15 +89,17 @@ pub fn get_mess_tile_pos(ndx: u32, z: f32) -> Transform {
 
 fn update_mess_bar(
     mut next_state: ResMut<NextState<GameState>>,
+    mut commands: Commands,
+    mut grid_state: ResMut<GridState>,
     mess_query: Query<&mut MessBar>,
-    mut tile_query: Query<(&TilePos, &mut TileVisible), With<MessTile>>,
+    mut tile_query: Query<(&TilePos, &mut TileVisible, Entity), With<MessTile>>,
 ) {
     // The counter is duplicated...
     let mess_counter = mess_query.into_iter().collect::<Vec<&MessBar>>()[0].counter;
 
     let threshold: f32 = mess_counter as f32 * LEVEL_SIZE as f32 / CLOUD_COUNT_LOSE_COND as f32;
 
-    for (pos, mut vis) in tile_query.iter_mut() {
+    for (pos, mut vis, _) in tile_query.iter_mut() {
         if pos.y <= threshold as u32 {
             vis.0 = true;
         } else {
@@ -106,6 +108,10 @@ fn update_mess_bar(
     }
 
     if mess_counter > CLOUD_COUNT_LOSE_COND {
+        for (_, _, entity) in tile_query.iter_mut() {
+            commands.entity(entity).insert(LossCause);
+        }
+        grid_state.loss_condition = LossCondition::TooMessy;
         next_state.set(GameState::GameOver);
     }
 }
