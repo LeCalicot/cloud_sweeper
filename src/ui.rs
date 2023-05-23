@@ -5,6 +5,7 @@ use colored::*;
 
 use crate::{
     logic::{GridState, LossCause, LossCondition, CLOUD_COUNT_LOSE_COND},
+    menu::GAMEOVER_MESS_BLINK_DURATION,
     player::TILE_SIZE,
     world::LEVEL_SIZE,
     GameState,
@@ -18,7 +19,9 @@ pub struct MessBar {
 }
 
 #[derive(Component)]
-pub struct MessTile;
+pub struct MessTile {
+    pub blink_loss: Timer,
+}
 
 /// This plugin handles the UI interface
 impl Plugin for UiPlugin {
@@ -60,7 +63,9 @@ fn setup_mess_bar(mut commands: Commands, asset_server: Res<AssetServer>) {
                 ..Default::default()
             })
             .id();
-        commands.entity(tile_entity).insert(MessTile);
+        commands.entity(tile_entity).insert(MessTile {
+            blink_loss: Timer::from_seconds(GAMEOVER_MESS_BLINK_DURATION, TimerMode::Repeating),
+        });
         tile_storage.set(&tile_pos, tile_entity);
     }
 

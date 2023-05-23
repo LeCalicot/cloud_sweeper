@@ -11,10 +11,12 @@ use bevy::prelude::*;
 use bevy::text::BreakLineOn;
 use bevy::window::close_on_esc;
 use bevy_easings::{Ease, EasingType};
+use bevy_ecs_tilemap::prelude::TilemapTextureSize;
+use bevy_ecs_tilemap::tiles::{TileBundle, TilePos, TileVisible};
 use bevy_kira_audio::prelude::*;
 use bevy_kira_audio::{Audio, AudioEasing, AudioTween};
 // use {AlignItems, BackgroundColor, JustifyContent, UiRect};
-use crate::world::{Platform, Sky, CAMERA_LAYER, DISPLAY_RATIO};
+use crate::world::{Platform, Sky, CAMERA_LAYER, DISPLAY_RATIO, LEVEL_SIZE};
 use std::time::Duration;
 
 #[cfg(debug_assertions)]
@@ -31,6 +33,7 @@ const GAMEOVER_EASING_SCALE_FACTOR: f32 = 2.;
 const GAMEOVER_EASING_ROT: bevy_easings::EaseFunction = bevy_easings::EaseFunction::SineInOut;
 const GAMEOVER_EASING_ROT_ANGLE: f32 = 10. * std::f32::consts::PI / 180.;
 const GAMEOVER_EASING_DURATION: std::time::Duration = Duration::from_millis(500);
+pub const GAMEOVER_MESS_BLINK_DURATION: f32 = 0.5;
 
 #[cfg(debug_assertions)]
 #[derive(Resource, Default)]
@@ -88,7 +91,8 @@ impl Plugin for MenuPlugin {
             .add_system(exit_game_over_menu.in_schedule(OnExit(GameState::GameOver)))
             .add_system(game_over_screen.run_if(in_state(GameState::GameOver)))
             .add_system(click_quit_button.run_if(in_state(GameState::GameOver)))
-            .add_system(highlight_lose_condition.in_schedule(OnEnter(GameState::GameOver)))
+            .add_system(highlight_mess_loss_condition.run_if(in_state(GameState::GameOver)))
+            .add_system(highlight_cloud_lose_condition.in_schedule(OnEnter(GameState::GameOver)))
             .add_system(spawn_background.in_schedule(OnEnter(GameState::Menu)));
         #[cfg(debug_assertions)]
         {
@@ -327,7 +331,7 @@ fn setup_game_over_screen(
 }
 
 // WIP:
-// - how to set the size for the mess bar tiles?
+//// - how to set the size for the mess bar tiles?
 // - change the easing for the size
 // - use the rotation easing as well & make it rotate around the center of the entity
 // - Make sure that the previous easing (for cloud move) is finished
@@ -335,11 +339,12 @@ fn setup_game_over_screen(
 // - Add a pause at the beginning of GameOver state
 // - remove background when restarting (now there are 2 entities)
 
-fn highlight_lose_condition(
+fn highlight_cloud_lose_condition(
     mut commands: Commands,
-    mut query: Query<(&mut Transform, &mut Sprite, Entity), (With<LossCause>,)>,
+    mut query: Query<(&mut Sprite, Entity), (With<LossCause>,)>,
+    mut tile_query: Query<(&TilePos, &mut MessTile)>,
 ) {
-    for (transfo, sprite, entity) in query.iter_mut() {
+    for (sprite, entity) in query.iter_mut() {
         let mut orig_sprite = sprite.clone();
         orig_sprite.custom_size = Some(Vec2::new(TILE_SIZE, TILE_SIZE));
         let mut bigger_sprite = sprite.clone();
@@ -353,6 +358,7 @@ fn highlight_lose_condition(
                 pause: None,
             },
         ));
+
         // let mut new_transfo = transfo.clone();
         // new_transfo.rotation = Quat::from_axis_angle(Vec3::Z, -GAMEOVER_EASING_ROT_ANGLE);
         // commands.entity(entity).insert(new_transfo.ease_to(
@@ -363,6 +369,27 @@ fn highlight_lose_condition(
         //         pause: Some(GAMEOVER_EASING_DURATION / 2),
         //     },
         // ));
+    }
+
+    // Add an offset to the timer to make it sliding
+    for (pos, mut tile) in tile_query.iter_mut() {
+        tile.blink_loss.set_elapsed(Duration::from_secs_f32(
+            ((LEVEL_SIZE - pos.y - 1) as f32 * GAMEOVER_MESS_BLINK_DURATION / 10.)
+                % GAMEOVER_MESS_BLINK_DURATION,
+        ))
+    }
+}
+
+fn highlight_mess_loss_condition(
+    mut tile_query: Query<(&mut MessTile, &mut TileVisible), With<LossCause>>,
+    time: Res<Time>,
+) {
+    for (mut tile, mut vis) in tile_query.iter_mut() {
+        tile.blink_loss.tick(time.delta());
+        if tile.blink_loss.just_finished() {
+            // Switch the visibility:
+            vis.0 = !vis.0;
+        }
     }
 }
 
