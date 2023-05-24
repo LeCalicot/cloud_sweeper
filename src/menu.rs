@@ -332,8 +332,8 @@ fn setup_game_over_screen(
 
 // WIP:
 //// - how to set the size for the mess bar tiles?
-// - change the easing for the size
-// - use the rotation easing as well & make it rotate around the center of the entity
+//// - change the easing for the size
+//// - use the rotation easing as well & make it rotate around the center of the entity
 // - Make sure that the previous easing (for cloud move) is finished
 // - let the move_cloud system finish (just don't update the grid!)
 // - Add a pause at the beginning of GameOver state
@@ -341,10 +341,10 @@ fn setup_game_over_screen(
 
 fn highlight_cloud_lose_condition(
     mut commands: Commands,
-    mut query: Query<(&mut Sprite, Entity), (With<LossCause>,)>,
+    mut query: Query<(&mut Sprite, &mut Transform, Entity), (With<LossCause>,)>,
     mut tile_query: Query<(&TilePos, &mut MessTile)>,
 ) {
-    for (sprite, entity) in query.iter_mut() {
+    for (sprite, mut transfo, entity) in query.iter_mut() {
         let mut orig_sprite = sprite.clone();
         orig_sprite.custom_size = Some(Vec2::new(TILE_SIZE, TILE_SIZE));
         let mut bigger_sprite = sprite.clone();
@@ -359,16 +359,18 @@ fn highlight_cloud_lose_condition(
             },
         ));
 
-        // let mut new_transfo = transfo.clone();
-        // new_transfo.rotation = Quat::from_axis_angle(Vec3::Z, -GAMEOVER_EASING_ROT_ANGLE);
-        // commands.entity(entity).insert(new_transfo.ease_to(
-        //     Transform::from_rotation(Quat::from_axis_angle(Vec3::Z, GAMEOVER_EASING_ROT_ANGLE)),
-        //     GAMEOVER_EASING_ROT,
-        //     EasingType::PingPong {
-        //         duration: GAMEOVER_EASING_DURATION,
-        //         pause: Some(GAMEOVER_EASING_DURATION / 2),
-        //     },
-        // ));
+        let mut new_transfo_1 = *transfo;
+        let mut new_transfo_2 = *transfo;
+        new_transfo_1.rotate_local_z(-GAMEOVER_EASING_ROT_ANGLE);
+        new_transfo_2.rotate_local_z(GAMEOVER_EASING_ROT_ANGLE);
+        commands.entity(entity).insert(new_transfo_1.ease_to(
+            new_transfo_2,
+            GAMEOVER_EASING_ROT,
+            EasingType::PingPong {
+                duration: GAMEOVER_EASING_DURATION,
+                pause: Some(GAMEOVER_EASING_DURATION / 2),
+            },
+        ));
     }
 
     // Add an offset to the timer to make it sliding
