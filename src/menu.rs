@@ -73,6 +73,11 @@ pub struct GameOver;
 pub struct MainMenu;
 #[derive(Component)]
 pub struct QuitGame;
+#[derive(Component)]
+pub struct Retry;
+/// This plugin is responsible for the game menu (containing only one button...)
+#[derive(Component)]
+pub struct BackgroundTag;
 /// This plugin is responsible for the game menu (containing only one button...)
 /// The menu is only drawn during the State `GameState::Menu` and is removed when that state is exited
 impl Plugin for MenuPlugin {
@@ -295,7 +300,8 @@ fn setup_game_over_screen(
                 ..Default::default()
             });
         })
-        .insert(GameOver);
+        .insert(GameOver)
+        .insert(Retry);
 
     commands
         .spawn(ButtonBundle {
@@ -334,17 +340,19 @@ fn setup_game_over_screen(
 //// - how to set the size for the mess bar tiles?
 //// - change the easing for the size
 //// - use the rotation easing as well & make it rotate around the center of the entity
+// - create a single system for all the buttons to change color when hovered
 // - Make sure that the previous easing (for cloud move) is finished
 // - let the move_cloud system finish (just don't update the grid!)
 // - Add a pause at the beginning of GameOver state
 // - remove background when restarting (now there are 2 entities)
+// - In the gameover menu, quit=return to main menu, retry=replay instantly
 
 fn highlight_cloud_lose_condition(
     mut commands: Commands,
     mut query: Query<(&mut Sprite, &mut Transform, Entity), (With<LossCause>,)>,
     mut tile_query: Query<(&TilePos, &mut MessTile)>,
 ) {
-    for (sprite, mut transfo, entity) in query.iter_mut() {
+    for (sprite, transfo, entity) in query.iter_mut() {
         let mut orig_sprite = sprite.clone();
         orig_sprite.custom_size = Some(Vec2::new(TILE_SIZE, TILE_SIZE));
         let mut bigger_sprite = sprite.clone();
@@ -399,14 +407,14 @@ fn highlight_mess_loss_condition(
 fn game_over_screen(
     mut interaction_query: Query<
         (&Interaction, &mut BackgroundColor),
-        (Changed<Interaction>, With<Button>, With<GameOver>),
+        (Changed<Interaction>, With<Button>, With<Retry>),
     >,
     mut next_state: ResMut<NextState<GameState>>,
     button_colors: Res<ButtonColors>,
 ) {
     for (interaction, mut color) in &mut interaction_query {
         match *interaction {
-            Interaction::Clicked => next_state.set(GameState::Menu),
+            Interaction::Clicked => next_state.set(GameState::Playing),
             Interaction::Hovered => {
                 *color = button_colors.hovered;
             }
@@ -452,7 +460,12 @@ fn spawn_background(
     assets: Res<TextureAssets>,
     query: Query<&mut Window>,
     background_image: Res<Assets<Image>>,
+    mut background_query: Query<Entity, With<BackgroundTag>>,
 ) {
+    // Remove the previous background if coming from the game:
+    for entity in background_query.iter_mut() {
+        commands.entity(entity).despawn();
+    }
     let window = query.single();
     let window_width = window.resolution.width();
     let window_height = window.resolution.height();
@@ -470,15 +483,6 @@ fn spawn_background(
         z: 0.,
     })
     .with_scale(Vec3::splat(scale_factor * DISPLAY_RATIO));
-
-    println!(
-        "{} {} {:?} {:?} {:?}",
-        { colored::Colorize::blue("➤") },
-        { colored::Colorize::blue("AAA:") },
-        { window_width },
-        { image_size[0] },
-        { offset }
-    );
 
     commands
         .spawn((
@@ -503,41 +507,42 @@ fn spawn_background(
                 },
             ),
         ))
-        .insert(Background::default());
+        .insert(Background::default())
+        .insert(BackgroundTag);
 
-    commands.spawn((
-        SpriteBundle {
-            transform: Transform::from_translation(Vec3::new(0., 0., SHADOW_LAYER)),
-            ..Default::default()
-        },
-        Sprite {
-            custom_size: Some(Vec2::new(window_width, window_height)),
-            color: Color::Rgba {
-                red: 0.,
-                green: 0.,
-                blue: 0.,
-                alpha: 0.,
+    commands
+        .spawn((
+            SpriteBundle {
+                transform: Transform::from_translation(Vec3::new(0., 0., SHADOW_LAYER)),
+                ..Default::default()
             },
-            ..Default::default()
-        }
-        .ease_to(
             Sprite {
                 custom_size: Some(Vec2::new(window_width, window_height)),
                 color: Color::Rgba {
                     red: 0.,
                     green: 0.,
                     blue: 0.,
-                    alpha: MAX_SHADOW,
+                    alpha: 0.,
                 },
                 ..Default::default()
-            },
-            bevy_easings::EaseFunction::SineInOut,
-            bevy_easings::EasingType::PingPong {
-                duration: SHADOW_PERIOD,
-                pause: None,
-            },
-        ),
-    ));
+            }
+            .ease_to(
+                Sprite {
+                    custom_size: Some(Vec2::new(window_width, window_height)),
+                    color: Color::Rgba {
+                        red: 0.,
+                        green: 0.,
+                        blue: 0.,
+                        alpha: MAX_SHADOW,
+                    },
+                    ..Default::default()
+                },
+                bevy_easings::EaseFunction::SineInOut,
+                bevy_easings::EasingType::PingPong {
+                    duration: SHADOW_PERIOD,
+                    pause: None,
+                },
+            ),
+        ))
+        .insert(BackgroundTag);
 }
-
-// WIP: add black filter on the background darkening slowly the sky
