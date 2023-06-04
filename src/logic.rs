@@ -65,6 +65,7 @@ enum LogicSystem {
     UpdateSprites,
     RemoveClouds,
     FinishEasings,
+    CheckLoss,
 }
 
 /// This plugin handles player related stuff like movement
@@ -128,6 +129,11 @@ impl Plugin for LogicPlugin {
                     .run_if(in_state(GameState::Playing))
                     .in_set(LogicSystem::FinishEasings)
                     .after(LogicSystem::RemoveClouds),
+            )
+            .add_systems(
+                (check_lose_condition.run_if(in_state(GameState::Playing)),)
+                    .in_set(LogicSystem::CheckLoss)
+                    .after(LogicSystem::FinishEasings),
             )
             .add_event::<SoundOnMove>()
             .add_event::<SoundOnAction>();
