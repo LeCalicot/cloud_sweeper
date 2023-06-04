@@ -23,6 +23,12 @@ pub struct Sky;
 #[derive(Component)]
 pub struct Platform;
 
+#[derive(Component)]
+pub struct AllTiles;
+
+#[derive(Component)]
+pub struct TileMapEntity;
+
 pub const LEVEL_SIZE: u32 = 10;
 pub const STAGE_WIDTH: u32 = 6;
 pub const STAGE_BL: [u32; 2] = [2, 2];
@@ -50,7 +56,7 @@ fn setup_world(mut commands: Commands, asset_server: Res<AssetServer>) {
         x: LEVEL_SIZE,
         y: LEVEL_SIZE,
     };
-    let tilemap_entity = commands.spawn_empty().id();
+    let tilemap_entity = commands.spawn_empty().insert(TileMapEntity).id();
     let mut tile_storage = TileStorage::empty(tilemap_size);
 
     for x in 0..tilemap_size.x {
@@ -64,7 +70,9 @@ fn setup_world(mut commands: Commands, asset_server: Res<AssetServer>) {
                     tilemap_id: TilemapId(tilemap_entity),
                     ..Default::default()
                 })
+                .insert(AllTiles)
                 .id();
+            commands.entity(tilemap_entity).add_child(tile_entity);
             if (STAGE_BL[0] <= x) && (x <= STAGE_UR[0]) && (STAGE_BL[1] <= y) && (y <= STAGE_UR[1])
             {
                 commands

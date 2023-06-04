@@ -7,7 +7,7 @@ use crate::{
     logic::{GridState, LossCause, LossCondition, CLOUD_COUNT_LOSE_COND},
     menu::GAMEOVER_MESS_BLINK_DURATION,
     player::TILE_SIZE,
-    world::LEVEL_SIZE,
+    world::{AllTiles, TileMapEntity, LEVEL_SIZE},
     GameState,
 };
 
@@ -48,7 +48,7 @@ fn setup_mess_bar(mut commands: Commands, asset_server: Res<AssetServer>) {
         y: TILE_SIZE,
     };
 
-    let tilemap_entity = commands.spawn_empty().id();
+    let tilemap_entity = commands.spawn_empty().insert(TileMapEntity).id();
     let mut tile_storage = TileStorage::empty(tilemap_size);
 
     for y in 0..tilemap_size.y {
@@ -62,7 +62,9 @@ fn setup_mess_bar(mut commands: Commands, asset_server: Res<AssetServer>) {
                 tilemap_id: TilemapId(tilemap_entity),
                 ..Default::default()
             })
+            .insert(AllTiles)
             .id();
+        commands.entity(tilemap_entity).add_child(tile_entity);
         commands.entity(tile_entity).insert(MessTile {
             blink_loss: Timer::from_seconds(GAMEOVER_MESS_BLINK_DURATION, TimerMode::Repeating),
         });

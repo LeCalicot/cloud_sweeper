@@ -12,11 +12,11 @@ use bevy::text::BreakLineOn;
 use bevy::window::close_on_esc;
 use bevy_easings::{Ease, EasingType};
 use bevy_ecs_tilemap::prelude::TilemapTextureSize;
-use bevy_ecs_tilemap::tiles::{TileBundle, TilePos, TileVisible};
+use bevy_ecs_tilemap::tiles::{TileBundle, TilePos, TileStorage, TileVisible};
 use bevy_kira_audio::prelude::*;
 use bevy_kira_audio::{Audio, AudioEasing, AudioTween};
 // use {AlignItems, BackgroundColor, JustifyContent, UiRect};
-use crate::world::{Platform, Sky, CAMERA_LAYER, DISPLAY_RATIO, LEVEL_SIZE};
+use crate::world::{AllTiles, Platform, Sky, CAMERA_LAYER, DISPLAY_RATIO, LEVEL_SIZE};
 use std::time::Duration;
 
 #[cfg(debug_assertions)]
@@ -485,14 +485,28 @@ fn exit_game_over_menu(
         Or<(
             With<Cloud>,
             With<Player>,
-            With<Sky>,
-            With<Platform>,
-            With<MessBar>,
-            With<MessTile>,
+            // With<AllTiles>,
             With<GameOver>,
+            // With<TileStorage>,
         )>,
     >,
+    mut tile_storage_query: Query<(&mut TileStorage, Entity), With<TileStorage>>,
+    mut tile_query: Query<&mut TilePos, With<AllTiles>>,
 ) {
+    for (mut tile_storage, storage_entity) in tile_storage_query.iter_mut() {
+        for tile_pos in tile_query.iter_mut() {
+            let tile_entity = tile_storage.checked_get(&tile_pos);
+
+            match tile_entity.is_some() {
+                true => {
+                    tile_storage.remove(&tile_pos);
+                    commands.entity(tile_entity.unwrap()).despawn_recursive();
+                }
+                false => (),
+            }
+        }
+        commands.entity(storage_entity).despawn();
+    }
     for entity in query.iter_mut() {
         commands.entity(entity).despawn_recursive();
     }
