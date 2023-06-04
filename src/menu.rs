@@ -85,6 +85,10 @@ impl Plugin for MenuPlugin {
         app.init_resource::<ButtonColors>()
             .add_system(setup_menu.in_schedule(OnEnter(GameState::Menu)))
             .add_system(click_play_button.run_if(in_state(GameState::Menu)))
+            .add_system(
+                change_button_color_on_hover
+                    .run_if(in_state(GameState::Menu).or_else(in_state(GameState::GameOver))),
+            )
             // .add_system(click_play_button.in_schedule(OnEnter(GameState::Menu)))
             .add_system(despawn_screen::<MainMenu>.in_schedule(OnExit(GameState::Menu)))
             .add_systems((
@@ -179,45 +183,35 @@ fn setup_menu(
         .insert(MainMenu);
 }
 
-// #[allow(clippy::type_complexity)]
-// fn change_button_color_on_hover(
-//     button_colors: Res<ButtonColors>,
-//     mut interaction_query: Query<
-//         (&Interaction, &mut BackgroundColor),
-//         (Changed<Interaction>, With<MainMenu>),
-//     >,
-// ) {
-//     for (interaction, mut color) in &mut interaction_query {
-//         match *interaction {
-//             Interaction::Hovered => {
-//                 *color = button_colors.hovered;
-//             }
-//             Interaction::None => {
-//                 *color = button_colors.normal;
-//             }
-//             Interaction::Clicked => (),
-//         }
-//     }
-// }
-
 #[allow(clippy::type_complexity)]
-fn click_play_button(
+fn change_button_color_on_hover(
     button_colors: Res<ButtonColors>,
-    mut next_state: ResMut<NextState<GameState>>,
     mut interaction_query: Query<
         (&Interaction, &mut BackgroundColor),
-        (Changed<Interaction>, With<MainMenu>),
+        (Changed<Interaction>, With<Button>),
     >,
 ) {
     for (interaction, mut color) in &mut interaction_query {
         match *interaction {
-            Interaction::Clicked => next_state.set(GameState::Playing),
             Interaction::Hovered => {
                 *color = button_colors.hovered;
             }
             Interaction::None => {
                 *color = button_colors.normal;
             }
+            Interaction::Clicked => (),
+        }
+    }
+}
+
+#[allow(clippy::type_complexity)]
+fn click_play_button(
+    mut next_state: ResMut<NextState<GameState>>,
+    mut interaction_query: Query<(&Interaction,), (Changed<Interaction>, With<MainMenu>)>,
+) {
+    for (interaction,) in &mut interaction_query {
+        if let Interaction::Clicked = *interaction {
+            next_state.set(GameState::Playing)
         }
     }
 }
@@ -442,7 +436,7 @@ fn highlight_mess_loss_condition(
 #[allow(clippy::type_complexity)]
 fn game_over_screen_interactions(
     mut retry_query: Query<
-        (&Interaction, &mut BackgroundColor),
+        (&Interaction,),
         (
             Changed<Interaction>,
             With<Button>,
@@ -451,9 +445,9 @@ fn game_over_screen_interactions(
         ),
     >,
     mut next_state: ResMut<NextState<GameState>>,
-    button_colors: Res<ButtonColors>,
+
     mut quit_query: Query<
-        (&Interaction, &mut BackgroundColor),
+        (&Interaction,),
         (
             Changed<Interaction>,
             With<Button>,
@@ -463,28 +457,14 @@ fn game_over_screen_interactions(
     >,
     mut exit: EventWriter<AppExit>,
 ) {
-    for (interaction, mut color) in &mut retry_query {
-        match *interaction {
-            Interaction::Clicked => next_state.set(GameState::Playing),
-            Interaction::Hovered => {
-                *color = button_colors.hovered;
-            }
-            Interaction::None => {
-                *color = button_colors.normal;
-            }
+    for (interaction,) in &mut retry_query {
+        if let Interaction::Clicked = *interaction {
+            next_state.set(GameState::Playing)
         }
     }
-    for (interaction, mut color) in &mut quit_query {
-        match *interaction {
-            Interaction::Clicked => {
-                exit.send(AppExit);
-            }
-            Interaction::Hovered => {
-                *color = button_colors.hovered;
-            }
-            Interaction::None => {
-                *color = button_colors.normal;
-            }
+    for (interaction,) in &mut quit_query {
+        if let Interaction::Clicked = *interaction {
+            exit.send(AppExit);
         }
     }
 }
