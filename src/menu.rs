@@ -86,7 +86,7 @@ impl Plugin for MenuPlugin {
             .add_system(setup_menu.in_schedule(OnEnter(GameState::Menu)))
             .add_system(click_play_button.run_if(in_state(GameState::Menu)))
             // .add_system(click_play_button.in_schedule(OnEnter(GameState::Menu)))
-            .add_system(cleanup_menu.in_schedule(OnExit(GameState::Menu)))
+            .add_system(despawn_screen::<MainMenu>.in_schedule(OnExit(GameState::Menu)))
             .add_systems((
                 click_play_button.run_if(in_state(GameState::Menu)),
                 close_on_esc.run_if(in_state(GameState::Menu)),
@@ -94,8 +94,7 @@ impl Plugin for MenuPlugin {
             .add_system(setup_game_over_screen.in_schedule(OnEnter(GameState::GameOver)))
             .add_system(game_over_clear.in_schedule(OnEnter(GameState::GameOver)))
             .add_system(exit_game_over_menu.in_schedule(OnExit(GameState::GameOver)))
-            .add_system(game_over_screen.run_if(in_state(GameState::GameOver)))
-            .add_system(click_quit_button.run_if(in_state(GameState::GameOver)))
+            .add_system(game_over_screen_interactions.run_if(in_state(GameState::GameOver)))
             .add_system(highlight_mess_loss_condition.run_if(in_state(GameState::GameOver)))
             .add_system(highlight_cloud_lose_condition.in_schedule(OnEnter(GameState::GameOver)))
             .add_system(spawn_background.in_schedule(OnEnter(GameState::Menu)));
@@ -180,6 +179,27 @@ fn setup_menu(
         .insert(MainMenu);
 }
 
+// #[allow(clippy::type_complexity)]
+// fn change_button_color_on_hover(
+//     button_colors: Res<ButtonColors>,
+//     mut interaction_query: Query<
+//         (&Interaction, &mut BackgroundColor),
+//         (Changed<Interaction>, With<MainMenu>),
+//     >,
+// ) {
+//     for (interaction, mut color) in &mut interaction_query {
+//         match *interaction {
+//             Interaction::Hovered => {
+//                 *color = button_colors.hovered;
+//             }
+//             Interaction::None => {
+//                 *color = button_colors.normal;
+//             }
+//             Interaction::Clicked => (),
+//         }
+//     }
+// }
+
 #[allow(clippy::type_complexity)]
 fn click_play_button(
     button_colors: Res<ButtonColors>,
@@ -192,30 +212,6 @@ fn click_play_button(
     for (interaction, mut color) in &mut interaction_query {
         match *interaction {
             Interaction::Clicked => next_state.set(GameState::Playing),
-            Interaction::Hovered => {
-                *color = button_colors.hovered;
-            }
-            Interaction::None => {
-                *color = button_colors.normal;
-            }
-        }
-    }
-}
-
-#[allow(clippy::type_complexity)]
-fn click_quit_button(
-    button_colors: Res<ButtonColors>,
-    mut interaction_query: Query<
-        (&Interaction, &mut BackgroundColor),
-        (Changed<Interaction>, With<QuitGame>),
-    >,
-    mut exit: EventWriter<AppExit>,
-) {
-    for (interaction, mut color) in &mut interaction_query {
-        match *interaction {
-            Interaction::Clicked => {
-                exit.send(AppExit);
-            }
             Interaction::Hovered => {
                 *color = button_colors.hovered;
             }
@@ -260,86 +256,126 @@ fn debug_auto_loss(
     }
 }
 
-fn cleanup_menu(mut commands: Commands, menu_elt: Query<(Entity,), (With<MainMenu>,)>) {
-    for (entity,) in menu_elt.iter() {
-        commands.entity(entity).despawn_recursive();
-    }
-}
-
 fn setup_game_over_screen(
     mut commands: Commands,
     // button_colors: Res<ButtonColors>,
     font_assets: Res<FontAssets>,
 ) {
+    // Spawn a node containing all the menu:
     commands
-        .spawn(ButtonBundle {
+        .spawn((NodeBundle {
+            background_color: BackgroundColor(Color::ORANGE_RED),
             style: Style {
-                size: Size::new(Val::Px(120.0), Val::Px(50.0)),
-                margin: UiRect::all(Val::Auto),
-                justify_content: JustifyContent::Center,
+                // size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
                 align_items: AlignItems::Center,
-                ..Default::default()
-            },
-            // color: button_colors.normal,/
-            ..Default::default()
-        })
-        .with_children(|parent| {
-            parent.spawn(TextBundle {
-                text: Text {
-                    sections: vec![TextSection {
-                        value: "Retry".to_string(),
-                        style: TextStyle {
-                            font: font_assets.fira_sans.clone(),
-                            font_size: 40.0,
-                            color: Color::rgb(0.9, 0.9, 0.9),
-                        },
-                    }],
-                    alignment: TextAlignment::Center,
-                    linebreak_behaviour: BreakLineOn::WordBoundary,
+                position_type: PositionType::Absolute,
+                direction: Direction::LeftToRight,
+                flex_direction: FlexDirection::Row,
+                position: UiRect {
+                    left: Val::Percent(50.),
+                    right: Val::Percent(50.),
+                    top: Val::Percent(5.),
+                    bottom: Val::Auto,
                 },
-                ..Default::default()
-            });
-        })
+                // margin: UiRect {
+                //     left: Val::Px(50.),
+                //     right: Val::Px(50.),
+                //     top: Val::Auto,
+                //     bottom: Val::Auto,
+                // },
+                justify_content: JustifyContent::Center,
+                ..default()
+            },
+            ..default()
+        },))
         .insert(GameOver)
-        .insert(Retry);
-
-    commands
-        .spawn(ButtonBundle {
-            style: Style {
-                size: Size::new(Val::Px(120.0), Val::Px(50.0)),
-                margin: UiRect::all(Val::Auto),
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                ..Default::default()
-            },
-            // color: button_colors.normal,
-            ..Default::default()
-        })
-        .insert(QuitGame)
+        // Spawn the Retry button:
         .with_children(|parent| {
-            parent.spawn(TextBundle {
-                text: Text {
-                    sections: vec![TextSection {
-                        value: "Quit".to_string(),
-                        style: TextStyle {
-                            font: font_assets.fira_sans.clone(),
-                            font_size: 40.0,
-                            color: Color::rgb(0.9, 0.9, 0.9),
+            parent
+                .spawn((
+                    Retry,
+                    ButtonBundle {
+                        style: Style {
+                            size: Size::new(Val::Px(120.0), Val::Px(50.0)),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            margin: UiRect {
+                                left: Val::Px(50.),
+                                right: Val::Px(50.),
+                                top: Val::Auto,
+                                bottom: Val::Auto,
+                            },
+                            ..Default::default()
                         },
-                    }],
-                    alignment: TextAlignment::Center,
-                    linebreak_behaviour: BreakLineOn::WordBoundary,
-                },
-                ..Default::default()
-            });
+                        // color: button_colors.normal,/
+                        ..Default::default()
+                    },
+                ))
+                .with_children(|parent| {
+                    parent.spawn((TextBundle {
+                        text: Text {
+                            sections: vec![TextSection {
+                                value: "Retry".to_string(),
+                                style: TextStyle {
+                                    font: font_assets.fira_sans.clone(),
+                                    font_size: 40.0,
+                                    color: Color::rgb(0.9, 0.9, 0.9),
+                                },
+                            }],
+                            alignment: TextAlignment::Center,
+                            linebreak_behaviour: BreakLineOn::WordBoundary,
+                        },
+                        ..Default::default()
+                    },));
+                });
         })
-        .insert(GameOver);
+        // Spawn the Quit button:
+        .with_children(|parent| {
+            parent
+                .spawn((
+                    QuitGame,
+                    ButtonBundle {
+                        style: Style {
+                            size: Size::new(Val::Px(120.0), Val::Px(50.0)),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            margin: UiRect {
+                                left: Val::Px(50.),
+                                right: Val::Px(50.),
+                                top: Val::Auto,
+                                bottom: Val::Auto,
+                            },
+                            ..Default::default()
+                        },
+                        // color: button_colors.normal,
+                        ..Default::default()
+                    },
+                ))
+                .with_children(|parent| {
+                    parent.spawn((TextBundle {
+                        text: Text {
+                            sections: vec![TextSection {
+                                value: "Quit".to_string(),
+                                style: TextStyle {
+                                    font: font_assets.fira_sans.clone(),
+                                    font_size: 40.0,
+                                    color: Color::rgb(0.9, 0.9, 0.9),
+                                },
+                            }],
+                            alignment: TextAlignment::Center,
+                            linebreak_behaviour: BreakLineOn::WordBoundary,
+                        },
+                        ..Default::default()
+                    },));
+                });
+        });
 }
 
 // WIP:
 //// - how to set the size for the mess bar tiles?
 //// - change the easing for the size
 //// - use the rotation easing as well & make it rotate around the center of the entity
+//// - improve UI (button positions)
 // - create a single system for all the buttons to change color when hovered
 // - Make sure that the previous easing (for cloud move) is finished
 // - let the move_cloud system finish (just don't update the grid!)
@@ -404,17 +440,45 @@ fn highlight_mess_loss_condition(
 }
 
 #[allow(clippy::type_complexity)]
-fn game_over_screen(
-    mut interaction_query: Query<
+fn game_over_screen_interactions(
+    mut retry_query: Query<
         (&Interaction, &mut BackgroundColor),
-        (Changed<Interaction>, With<Button>, With<Retry>),
+        (
+            Changed<Interaction>,
+            With<Button>,
+            With<Retry>,
+            Without<QuitGame>,
+        ),
     >,
     mut next_state: ResMut<NextState<GameState>>,
     button_colors: Res<ButtonColors>,
+    mut quit_query: Query<
+        (&Interaction, &mut BackgroundColor),
+        (
+            Changed<Interaction>,
+            With<Button>,
+            With<QuitGame>,
+            Without<Retry>,
+        ),
+    >,
+    mut exit: EventWriter<AppExit>,
 ) {
-    for (interaction, mut color) in &mut interaction_query {
+    for (interaction, mut color) in &mut retry_query {
         match *interaction {
             Interaction::Clicked => next_state.set(GameState::Playing),
+            Interaction::Hovered => {
+                *color = button_colors.hovered;
+            }
+            Interaction::None => {
+                *color = button_colors.normal;
+            }
+        }
+    }
+    for (interaction, mut color) in &mut quit_query {
+        match *interaction {
+            Interaction::Clicked => {
+                exit.send(AppExit);
+            }
             Interaction::Hovered => {
                 *color = button_colors.hovered;
             }
@@ -445,7 +509,6 @@ fn exit_game_over_menu(
             With<Platform>,
             With<MessBar>,
             With<MessTile>,
-            With<Button>,
             With<GameOver>,
         )>,
     >,
@@ -545,4 +608,11 @@ fn spawn_background(
             ),
         ))
         .insert(BackgroundTag);
+}
+
+// Generic system that takes a component as a parameter, and will despawn all entities with that component
+fn despawn_screen<T: Component>(to_despawn: Query<Entity, With<T>>, mut commands: Commands) {
+    for entity in &to_despawn {
+        commands.entity(entity).despawn_recursive();
+    }
 }
