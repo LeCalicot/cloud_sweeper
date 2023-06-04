@@ -21,6 +21,9 @@ codegen-units = 1
 #     "bevy/dynamic",
 # ]
 
+[workspace]
+resolver = "2" # Important! wgpu/Bevy needs this!
+
 [dependencies]
 bevy_asset_loader = { version = "0.16" }
 bevy = { version = "0.10", default-features = false, features = [

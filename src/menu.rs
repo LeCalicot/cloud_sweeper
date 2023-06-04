@@ -470,7 +470,7 @@ fn game_over_screen_interactions(
 }
 
 #[allow(clippy::type_complexity)]
-fn game_over_clear(mut commands: Commands, audio: Res<Audio>) {
+fn game_over_clear(audio: Res<Audio>) {
     audio.stop().fade_out(AudioTween::new(
         Duration::from_secs(1),
         AudioEasing::InOutPowi(2),
