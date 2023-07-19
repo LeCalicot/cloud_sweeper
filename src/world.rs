@@ -33,7 +33,7 @@ pub const LEVEL_SIZE: u32 = 10;
 pub const STAGE_WIDTH: u32 = 6;
 pub const STAGE_BL: [u32; 2] = [2, 2];
 pub const STAGE_UR: [u32; 2] = [7, 7];
-pub const CAMERA_LAYER: f32 = 1000.;
+pub const CAMERA_LAYER: f32 = 500.;
 pub const DISPLAY_RATIO: f32 = 1. / 4.;
 
 /// This plugin handles world related stuff: background, cloud movement,...
