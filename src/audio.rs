@@ -153,7 +153,6 @@ fn play_sound_on_push(
 //     ));
 // }
 
-// WIP: play sample on move
 
 fn play_debug_beep_on_spawn(
     main_clock: Res<MainClock>,

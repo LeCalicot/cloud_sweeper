@@ -87,15 +87,14 @@ impl Plugin for LogicPlugin {
                     .in_set(LogicSystem::FillPlayerBuffer),
             )
             .add_systems(
-                (
-                    pop_player_buffer.run_if(in_state(GameState::Playing)),
-                    check_lose_condition.run_if(in_state(GameState::Playing)),
-                )
+                (pop_player_buffer.run_if(in_state(GameState::Playing)),)
                     .in_set(LogicSystem::PopPlayerBuffer),
             )
             .add_systems(
                 (
-                    move_clouds.run_if(in_state(GameState::Playing)),
+                    move_clouds.run_if(
+                        in_state(GameState::Playing).or_else(in_state(GameState::GameOver)),
+                    ),
                     play_special.run_if(in_state(GameState::Playing)),
                     clouds::new_cloud.run_if(in_state(GameState::Playing)),
                 )
@@ -104,7 +103,7 @@ impl Plugin for LogicPlugin {
             )
             .add_system(
                 push_clouds
-                    .run_if(in_state(GameState::Playing))
+                    .run_if(in_state(GameState::Playing).or_else(in_state(GameState::GameOver)))
                     .in_set(LogicSystem::PushClouds)
                     .after(LogicSystem::MoveClouds),
             )
@@ -126,12 +125,12 @@ impl Plugin for LogicPlugin {
             )
             .add_system(
                 finish_easings
-                    .run_if(in_state(GameState::Playing))
+                    .run_if(in_state(GameState::Playing).or_else(in_state(GameState::GameOver)))
                     .in_set(LogicSystem::FinishEasings)
                     .after(LogicSystem::RemoveClouds),
             )
             .add_systems(
-                (check_lose_condition.run_if(in_state(GameState::Playing)),)
+                (check_loss_condition.run_if(in_state(GameState::Playing)),)
                     .in_set(LogicSystem::CheckLoss)
                     .after(LogicSystem::FinishEasings),
             )
@@ -664,7 +663,7 @@ impl GridState {
 }
 
 /// Check whether the player cannot move at all, then it loses.
-fn check_lose_condition(
+fn check_loss_condition(
     mut commands: Commands,
     mut grid_state: ResMut<GridState>,
     player_control: ResMut<PlayerControl>,
@@ -708,6 +707,7 @@ fn check_lose_condition(
 
         grid_state.loss_condition = LossCondition::Stuck;
         next_state.set(GameState::GameOver);
+        // WIP
     }
 }
 

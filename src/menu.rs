@@ -100,7 +100,7 @@ impl Plugin for MenuPlugin {
             .add_system(exit_game_over_menu.in_schedule(OnExit(GameState::GameOver)))
             .add_system(game_over_screen_interactions.run_if(in_state(GameState::GameOver)))
             .add_system(highlight_mess_loss_condition.run_if(in_state(GameState::GameOver)))
-            .add_system(highlight_cloud_lose_condition.in_schedule(OnEnter(GameState::GameOver)))
+            .add_system(highlight_loss_condition.in_schedule(OnEnter(GameState::GameOver)))
             .add_system(spawn_background.in_schedule(OnEnter(GameState::Menu)));
         #[cfg(debug_assertions)]
         {
@@ -370,14 +370,15 @@ fn setup_game_over_screen(
 //// - change the easing for the size
 //// - use the rotation easing as well & make it rotate around the center of the entity
 //// - improve UI (button positions)
-// - create a single system for all the buttons to change color when hovered
+//// - create a single system for all the buttons to change color when hovered
+//// - after retrying, the mess tile highlight becomes out of sync
 // - Make sure that the previous easing (for cloud move) is finished
 // - let the move_cloud system finish (just don't update the grid!)
 // - Add a pause at the beginning of GameOver state
 // - remove background when restarting (now there are 2 entities)
 // - In the gameover menu, quit=return to main menu, retry=replay instantly
 
-fn highlight_cloud_lose_condition(
+fn highlight_loss_condition(
     mut commands: Commands,
     mut query: Query<(&mut Sprite, &mut Transform, Entity), (With<LossCause>,)>,
     mut tile_query: Query<(&TilePos, &mut MessTile)>,
@@ -396,7 +397,7 @@ fn highlight_cloud_lose_condition(
                 pause: None,
             },
         ));
-
+        // WIP: take the existing easing and chain it before the end easing
         let mut new_transfo_1 = *transfo;
         let mut new_transfo_2 = *transfo;
         new_transfo_1.rotate_local_z(-GAMEOVER_EASING_ROT_ANGLE);
@@ -418,6 +419,8 @@ fn highlight_cloud_lose_condition(
                 % GAMEOVER_MESS_BLINK_DURATION,
         ))
     }
+
+    // time.update();
 }
 
 fn highlight_mess_loss_condition(
@@ -480,16 +483,7 @@ fn game_over_clear(audio: Res<Audio>) {
 #[allow(clippy::type_complexity)]
 fn exit_game_over_menu(
     mut commands: Commands,
-    mut query: Query<
-        Entity,
-        Or<(
-            With<Cloud>,
-            With<Player>,
-            // With<AllTiles>,
-            With<GameOver>,
-            // With<TileStorage>,
-        )>,
-    >,
+    mut query: Query<Entity, Or<(With<Cloud>, With<Player>, With<GameOver>)>>,
     mut tile_storage_query: Query<(&mut TileStorage, Entity), With<TileStorage>>,
     mut tile_query: Query<&mut TilePos, With<AllTiles>>,
 ) {
