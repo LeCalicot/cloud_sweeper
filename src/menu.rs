@@ -83,25 +83,34 @@ pub struct BackgroundTag;
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ButtonColors>()
-            .add_system(setup_menu.in_schedule(OnEnter(GameState::Menu)))
-            .add_system(click_play_button.run_if(in_state(GameState::Menu)))
-            .add_system(
+            .add_systems(OnEnter(GameState::Menu), setup_menu)
+            .add_systems(Update, click_play_button.run_if(in_state(GameState::Menu)))
+            .add_systems(
+                Update,
                 change_button_color_on_hover
                     .run_if(in_state(GameState::Menu).or_else(in_state(GameState::GameOver))),
             )
             // .add_system(click_play_button.in_schedule(OnEnter(GameState::Menu)))
-            .add_system(despawn_screen::<MainMenu>.in_schedule(OnExit(GameState::Menu)))
-            .add_systems((
-                click_play_button.run_if(in_state(GameState::Menu)),
-                close_on_esc.run_if(in_state(GameState::Menu)),
-            ))
-            .add_system(setup_game_over_screen.in_schedule(OnEnter(GameState::GameOver)))
-            .add_system(game_over_clear.in_schedule(OnEnter(GameState::GameOver)))
-            .add_system(exit_game_over_menu.in_schedule(OnExit(GameState::GameOver)))
-            .add_system(game_over_screen_interactions.run_if(in_state(GameState::GameOver)))
-            .add_system(highlight_mess_loss_condition.run_if(in_state(GameState::GameOver)))
-            .add_system(highlight_loss_condition.in_schedule(OnEnter(GameState::GameOver)))
-            .add_system(spawn_background.in_schedule(OnEnter(GameState::Menu)));
+            .add_systems(OnExit(GameState::Menu), despawn_screen::<MainMenu>)
+            .add_systems(
+                Update,
+                (click_play_button, close_on_esc).run_if(in_state(GameState::Menu)),
+            )
+            .add_systems(
+                OnEnter(GameState::GameOver),
+                (
+                    setup_game_over_screen,
+                    game_over_clear,
+                    highlight_loss_condition,
+                ),
+            )
+            .add_systems(OnExit(GameState::GameOver), exit_game_over_menu)
+            .add_systems(
+                Update,
+                (game_over_screen_interactions, highlight_mess_loss_condition)
+                    .run_if(in_state(GameState::GameOver)),
+            )
+            .add_systems(OnEnter(GameState::Menu), spawn_background.in_schedule);
         #[cfg(debug_assertions)]
         {
             app.init_resource::<DebugVariables>()

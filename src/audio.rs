@@ -61,10 +61,15 @@ pub struct SongHandle {
 impl Plugin for InternalAudioPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(AudioPlugin)
-            .add_system(play_music.in_schedule(OnEnter(GameState::Playing)))
-            .add_system(play_debug_beep_on_spawn.run_if(in_state(GameState::Playing)))
-            .add_system(play_sound_on_move.run_if(in_state(GameState::Playing)))
-            .add_system(play_sound_on_push.run_if(in_state(GameState::Playing)));
+            .add_systems(OnEnter(GameState::Playing), play_music)
+            .add_systems(
+                Update,
+                play_debug_beep_on_spawn.run_if(in_state(GameState::Playing)),
+            )
+            .add_systems(
+                Update,
+                (play_sound_on_move, play_sound_on_push).run_if(in_state(GameState::Playing)),
+            );
     }
 }
 
@@ -152,7 +157,6 @@ fn play_sound_on_push(
 //         AudioEasing::InOutPowi(2),
 //     ));
 // }
-
 
 fn play_debug_beep_on_spawn(
     main_clock: Res<MainClock>,

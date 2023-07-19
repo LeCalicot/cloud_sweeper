@@ -26,8 +26,8 @@ pub struct MessTile {
 /// This plugin handles the UI interface
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(setup_mess_bar.in_schedule(OnEnter(GameState::Playing)))
-            .add_system(update_mess_bar.run_if(in_state(GameState::Playing)));
+        app.add_systems(OnEnter(GameState::Playing), setup_mess_bar)
+            .add_systems(Update, update_mess_bar.run_if(in_state(GameState::Playing)));
     }
 }
 
