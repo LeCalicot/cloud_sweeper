@@ -47,17 +47,17 @@ impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.add_state::<GameState>()
             // .add_plugin(DebugLinesPlugin::default())
-            .add_plugin(LoadingPlugin)
-            .add_plugin(MenuPlugin)
-            .add_plugin(WorldPlugin)
-            .add_plugin(ActionsPlugin)
-            .add_plugin(InternalAudioPlugin)
-            .add_plugin(PlayerPlugin)
-            .add_plugin(UiPlugin)
-            .add_plugin(LogicPlugin);
+            .add_plugins(LoadingPlugin)
+            .add_plugins(MenuPlugin)
+            .add_plugins(WorldPlugin)
+            .add_plugins(ActionsPlugin)
+            .add_plugins(InternalAudioPlugin)
+            .add_plugins(PlayerPlugin)
+            .add_plugins(UiPlugin)
+            .add_plugins(LogicPlugin);
         #[cfg(debug_assertions)]
         {
-            app.add_system(bevy::window::close_on_esc)
+            app.add_systems(Update, bevy::window::close_on_esc)
             // /.add_plugin(FrameTimeDiagnosticsPlugin::default())
                 // .add_plugin(LogDiagnosticsPlugin::default())
                 ;

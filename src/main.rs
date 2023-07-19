@@ -43,10 +43,10 @@ fn main() {
                 }),
         )
         .insert_resource(Msaa::Off)
-        .add_plugin(EasingsPlugin)
+        .add_plugins(EasingsPlugin)
         .insert_resource(ClearColor(Color::rgb(0., 0., 0.)))
-        .add_plugin(GamePlugin)
-        .add_startup_system(set_window_icon)
+        .add_plugins(GamePlugin)
+        .add_systems(Startup, set_window_icon)
         .run();
 }
 

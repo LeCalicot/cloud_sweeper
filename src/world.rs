@@ -39,11 +39,11 @@ pub const DISPLAY_RATIO: f32 = 1. / 4.;
 /// This plugin handles world related stuff: background, cloud movement,...
 impl Plugin for WorldPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(setup_world.in_schedule(OnEnter(GameState::Playing)))
+        app.add_systems(OnEnter(GameState::Playing), setup_world)
             // .add_enter_system(GameState::Playing, spawn_world)
-            .add_system(update_world.run_if(in_state(GameState::Playing)))
+            .add_systems(Update, update_world.run_if(in_state(GameState::Playing)))
             // .insert_resource(ImageSettings::default_nearest())
-            .add_plugin(TilemapPlugin);
+            .add_plugins(TilemapPlugin);
     }
 }
 

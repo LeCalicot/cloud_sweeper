@@ -46,13 +46,15 @@ pub struct Player {
 /// Player logic is only active during the State `GameState::Playing`
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(spawn_player.in_schedule(OnEnter(GameState::Playing)))
-            .add_system(finish_player_move.run_if(in_state(GameState::Playing)))
+        app.add_systems(OnEnter(GameState::Playing), spawn_player)
             .add_systems(
-                (
-                    animate_sprite.run_if(in_state(GameState::Playing)),
-                    move_player.run_if(in_state(GameState::Playing)),
-                )
+                Update,
+                finish_player_move.run_if(in_state(GameState::Playing)),
+            )
+            .add_systems(
+                Update,
+                (animate_sprite, move_player)
+                    .run_if(in_state(GameState::Playing))
                     .after(fill_player_buffer),
             );
     }

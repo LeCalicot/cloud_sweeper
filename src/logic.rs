@@ -72,42 +72,45 @@ enum LogicSystem {
 /// Player logic is only active during the State `GameState::Playing`
 impl Plugin for LogicPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(set_up_logic.in_schedule(OnEnter(GameState::Playing)))
+        app.add_systems(OnEnter(GameState::Playing), set_up_logic)
             .add_systems(
-                (
-                    tick_timers.run_if(in_state(GameState::Playing)),
-                    set_cloud_direction.run_if(in_state(GameState::Playing)),
-                )
+                Update,
+                (tick_timers, set_cloud_direction)
+                    .run_if(in_state(GameState::Playing))
                     .in_set(LogicSystem::TickClock)
                     .before(reset_cooldown_timers),
             )
-            .add_system(
+            .add_systems(
+                Update,
                 fill_player_buffer
                     .run_if(in_state(GameState::Playing))
                     .in_set(LogicSystem::FillPlayerBuffer),
             )
             .add_systems(
+                Update,
                 (pop_player_buffer.run_if(in_state(GameState::Playing)),)
                     .in_set(LogicSystem::PopPlayerBuffer),
             )
             .add_systems(
+                Update,
                 (
                     move_clouds.run_if(
                         in_state(GameState::Playing).or_else(in_state(GameState::GameOver)),
                     ),
-                    play_special.run_if(in_state(GameState::Playing)),
-                    clouds::new_cloud.run_if(in_state(GameState::Playing)),
+                    (play_special, clouds::new_cloud).run_if(in_state(GameState::Playing)),
                 )
                     .in_set(LogicSystem::MoveClouds)
                     .after(LogicSystem::TickClock),
             )
-            .add_system(
+            .add_systems(
+                Update,
                 push_clouds
                     .run_if(in_state(GameState::Playing).or_else(in_state(GameState::GameOver)))
                     .in_set(LogicSystem::PushClouds)
                     .after(LogicSystem::MoveClouds),
             )
             .add_systems(
+                Update,
                 (
                     update_cloud_pos.run_if(
                         in_state(GameState::Playing).or_else(in_state(GameState::GameOver)),
@@ -117,19 +120,22 @@ impl Plugin for LogicPlugin {
                     .in_set(LogicSystem::UpdateSprites)
                     .after(LogicSystem::PushClouds),
             )
-            .add_system(
+            .add_systems(
+                Update,
                 despawn_clouds
                     .run_if(in_state(GameState::Playing))
                     .in_set(LogicSystem::RemoveClouds)
                     .after(LogicSystem::UpdateSprites),
             )
-            .add_system(
+            .add_systems(
+                Update,
                 finish_easings
                     .run_if(in_state(GameState::Playing).or_else(in_state(GameState::GameOver)))
                     .in_set(LogicSystem::FinishEasings)
                     .after(LogicSystem::RemoveClouds),
             )
             .add_systems(
+                Update,
                 (check_loss_condition.run_if(in_state(GameState::Playing)),)
                     .in_set(LogicSystem::CheckLoss)
                     .after(LogicSystem::FinishEasings),
