@@ -43,7 +43,7 @@ impl Plugin for WorldPlugin {
             // .add_enter_system(GameState::Playing, spawn_world)
             .add_systems(Update, update_world.run_if(in_state(GameState::Playing)))
             // .insert_resource(ImageSettings::default_nearest())
-            .add_plugin(TilemapPlugin);
+            .add_plugins(TilemapPlugin);
     }
 }
 

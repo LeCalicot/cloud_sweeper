@@ -110,11 +110,11 @@ impl Plugin for MenuPlugin {
                 (game_over_screen_interactions, highlight_mess_loss_condition)
                     .run_if(in_state(GameState::GameOver)),
             )
-            .add_systems(OnEnter(GameState::Menu), spawn_background.in_schedule);
+            .add_systems(OnEnter(GameState::Menu), spawn_background);
         #[cfg(debug_assertions)]
         {
             app.init_resource::<DebugVariables>()
-                .add_system(debug_start_auto.run_if(in_state(GameState::Menu)));
+                .add_systems(Update, debug_start_auto.run_if(in_state(GameState::Menu)));
             // .add_system(debug_auto_loss.run_if(in_state(GameState::Playing)));
 
             // /.add_plugin(FrameTimeDiagnosticsPlugin::default())
@@ -151,7 +151,8 @@ fn setup_menu(
     commands
         .spawn(ButtonBundle {
             style: Style {
-                size: Size::new(Val::Px(120.0), Val::Px(50.0)),
+                width: Val::Px(120.0),
+                height: Val::Px(50.0),
                 margin: UiRect {
                     top: Val::Percent(5.),
                     left: Val::Percent(45.),
@@ -178,7 +179,7 @@ fn setup_menu(
                         },
                     }],
                     alignment: TextAlignment::Center,
-                    linebreak_behaviour: BreakLineOn::WordBoundary,
+                    linebreak_behavior: BreakLineOn::WordBoundary,
                 },
                 ..Default::default()
             });
@@ -208,7 +209,7 @@ fn change_button_color_on_hover(
             Interaction::None => {
                 *color = button_colors.normal;
             }
-            Interaction::Clicked => (),
+            Interaction::Pressed => (),
         }
     }
 }
@@ -219,7 +220,7 @@ fn click_play_button(
     mut interaction_query: Query<(&Interaction,), (Changed<Interaction>, With<MainMenu>)>,
 ) {
     for (interaction,) in &mut interaction_query {
-        if let Interaction::Clicked = *interaction {
+        if let Interaction::Pressed = *interaction {
             next_state.set(GameState::Playing)
         }
     }
@@ -274,12 +275,11 @@ fn setup_game_over_screen(
                 position_type: PositionType::Absolute,
                 direction: Direction::LeftToRight,
                 flex_direction: FlexDirection::Row,
-                position: UiRect {
-                    left: Val::Percent(50.),
-                    right: Val::Percent(50.),
-                    top: Val::Percent(5.),
-                    bottom: Val::Auto,
-                },
+                left: Val::Percent(50.),
+                right: Val::Percent(50.),
+                top: Val::Percent(5.),
+                bottom: Val::Auto,
+
                 // margin: UiRect {
                 //     left: Val::Px(50.),
                 //     right: Val::Px(50.),
@@ -299,7 +299,8 @@ fn setup_game_over_screen(
                     Retry,
                     ButtonBundle {
                         style: Style {
-                            size: Size::new(Val::Px(120.0), Val::Px(50.0)),
+                            width: Val::Px(120.0),
+                            height: Val::Px(50.0),
                             justify_content: JustifyContent::Center,
                             align_items: AlignItems::Center,
                             margin: UiRect {
@@ -326,7 +327,7 @@ fn setup_game_over_screen(
                                 },
                             }],
                             alignment: TextAlignment::Center,
-                            linebreak_behaviour: BreakLineOn::WordBoundary,
+                            linebreak_behavior: BreakLineOn::WordBoundary,
                         },
                         ..Default::default()
                     },));
@@ -339,7 +340,8 @@ fn setup_game_over_screen(
                     QuitGame,
                     ButtonBundle {
                         style: Style {
-                            size: Size::new(Val::Px(120.0), Val::Px(50.0)),
+                            width: Val::Px(120.0),
+                            height: Val::Px(50.0),
                             justify_content: JustifyContent::Center,
                             align_items: AlignItems::Center,
                             margin: UiRect {
@@ -366,7 +368,7 @@ fn setup_game_over_screen(
                                 },
                             }],
                             alignment: TextAlignment::Center,
-                            linebreak_behaviour: BreakLineOn::WordBoundary,
+                            linebreak_behavior: BreakLineOn::WordBoundary,
                         },
                         ..Default::default()
                     },));
@@ -386,6 +388,7 @@ fn setup_game_over_screen(
 // - Add a pause at the beginning of GameOver state
 // - remove background when restarting (now there are 2 entities)
 // - In the gameover menu, quit=return to main menu, retry=replay instantly
+// - use the new version of the package for the bevy_ecs_tilemap
 
 fn highlight_loss_condition(
     mut commands: Commands,
@@ -470,12 +473,12 @@ fn game_over_screen_interactions(
     mut exit: EventWriter<AppExit>,
 ) {
     for (interaction,) in &mut retry_query {
-        if let Interaction::Clicked = *interaction {
+        if let Interaction::Pressed = *interaction {
             next_state.set(GameState::Playing)
         }
     }
     for (interaction,) in &mut quit_query {
-        if let Interaction::Clicked = *interaction {
+        if let Interaction::Pressed = *interaction {
             exit.send(AppExit);
         }
     }

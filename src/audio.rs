@@ -12,10 +12,10 @@ use colored::*;
 
 pub struct InternalAudioPlugin;
 
-#[derive(Default)]
+#[derive(Default, Event)]
 pub struct SoundOnMove;
 
-#[derive(Default)]
+#[derive(Default, Event)]
 pub struct SoundOnAction {
     pub direction: GameControl,
 }
@@ -60,7 +60,7 @@ pub struct SongHandle {
 // This plugin is responsible to control the game audio
 impl Plugin for InternalAudioPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(AudioPlugin)
+        app.add_plugins(AudioPlugin)
             .add_systems(OnEnter(GameState::Playing), play_music)
             .add_systems(
                 Update,
