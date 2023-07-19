@@ -46,7 +46,7 @@ fn main() {
         .add_plugins(EasingsPlugin)
         .insert_resource(ClearColor(Color::rgb(0., 0., 0.)))
         .add_plugins(GamePlugin)
-        .add_startup_system(set_window_icon)
+        .add_systems(Startup, set_window_icon)
         .run();
 }
 
