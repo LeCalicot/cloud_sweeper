@@ -50,13 +50,22 @@ bevy_easings = "0.11.0"
 embed-resource = "2.1"
 
 
+[target.x86_64-pc-windows-msvc]
+linker = "lld"
+rustflags = [
+    "-Lnative=/opt/xwin/crt/lib/x86_64",
+    "-Lnative=/opt/xwin/sdk/lib/um/x86_64",
+    "-Lnative=/opt/xwin/sdk/lib/ucrt/x86_64",
+]
+
 # [target.x86_64-pc-windows-msvc]
 # linker = "lld"
 # rustflags = [
-#   "-Lnative=/opt/xwin/crt/lib/x86_64",
-#   "-Lnative=/opt/xwin/sdk/lib/um/x86_64",
-#   "-Lnative=/opt/xwin/sdk/lib/ucrt/x86_64"
+#     "-Lnative=/home/luc/.xwin/crt/lib/x86_64",
+#     "-Lnative=/home/luc/.xwin/sdk/lib/um/x86_64",
+#     "-Lnative=/home/luc/.xwin/sdk/lib/ucrt/x86_64",
 # ]
+
 
 # [env]
 # CARGO_MANIFEST_DIR="/home/luc/Dev/bevy_perso/cloud_sweeper"
