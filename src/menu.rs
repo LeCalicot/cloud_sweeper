@@ -187,7 +187,7 @@ fn setup_menu(
     commands
         .spawn(SpriteBundle {
             texture: asset_server.load("textures/instructions.drawio.png"),
-            transform: Transform::from_xyz(0., -10., 0.).with_scale(Vec3::splat(0.3)),
+            transform: Transform::from_xyz(0., -10., 10.).with_scale(Vec3::splat(0.3)),
             ..default()
         })
         .insert(MainMenu);
