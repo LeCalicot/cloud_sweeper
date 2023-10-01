@@ -55,7 +55,7 @@ impl Plugin for GamePlugin {
             .add_plugins(PlayerPlugin)
             .add_plugins(UiPlugin)
             .add_plugins(LogicPlugin);
-        // #[cfg(debug_assertions)]
+        #[cfg(debug_assertions)]
         {
             app.add_systems(Update, bevy::window::close_on_esc)
             // /.add_plugin(FrameTimeDiagnosticsPlugin::default())
