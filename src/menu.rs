@@ -1,5 +1,6 @@
 #![cfg_attr(debug_assertions, allow(dead_code, unused_imports))]
 
+use crate::clouds::{self, Animation, AnimationState, ToDespawn};
 use crate::loading::TextureAssets;
 use crate::logic::{GridState, LossCause};
 use crate::player::{Player, TILE_SIZE};
@@ -101,7 +102,7 @@ impl Plugin for MenuPlugin {
                 (
                     setup_game_over_screen,
                     game_over_clear,
-                    highlight_loss_condition,
+                    highlight_blocked_loss_condition,
                 ),
             )
             .add_systems(OnExit(GameState::GameOver), exit_game_over_menu)
@@ -383,14 +384,15 @@ fn setup_game_over_screen(
 //// - improve UI (button positions)
 //// - create a single system for all the buttons to change color when hovered
 //// - after retrying, the mess tile highlight becomes out of sync
-// - Make sure that the previous easing (for cloud move) is finished
+//// - Make sure that the previous easing (for cloud move) is finished
+// - Remove the mess bar properly before a retry
 // - let the move_cloud system finish (just don't update the grid!)
 // - Add a pause at the beginning of GameOver state
 // - remove background when restarting (now there are 2 entities)
 // - In the gameover menu, quit=return to main menu, retry=replay instantly
 // - use the new version of the package for the bevy_ecs_tilemap
 
-fn highlight_loss_condition(
+fn highlight_blocked_loss_condition(
     mut commands: Commands,
     mut query: Query<(&mut Sprite, &mut Transform, Entity), (With<LossCause>,)>,
     mut tile_query: Query<(&TilePos, &mut MessTile)>,
@@ -409,7 +411,7 @@ fn highlight_loss_condition(
                 pause: None,
             },
         ));
-        // WIP: take the existing easing and chain it before the end easing
+
         let mut new_transfo_1 = *transfo;
         let mut new_transfo_2 = *transfo;
         new_transfo_1.rotate_local_z(-GAMEOVER_EASING_ROT_ANGLE);

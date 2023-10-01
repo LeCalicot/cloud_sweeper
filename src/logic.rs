@@ -675,6 +675,7 @@ fn check_loss_condition(
     player_control: ResMut<PlayerControl>,
     mut next_state: ResMut<NextState<GameState>>,
     mut query: Query<(Entity, &mut GridPos), With<Cloud>>,
+    mut anim_query: Query<&mut Animation, With<Cloud>>,
 ) {
     let next_tiles = [
         [
@@ -705,6 +706,16 @@ fn check_loss_condition(
         has_lost = is_blocked.into_iter().all(|x| x);
     }
     if has_lost {
+        // Make sure that all animation are finished before highlighting the loss condition:
+        for animation in anim_query.iter_mut() {
+            println!("{} {} {:?}", { "➤➤➤" }, { "AAA:" }, {
+                animation.state
+            });
+            match animation.state {
+                AnimationState::Move => return,
+                AnimationState::End | AnimationState::Init => (),
+            }
+        }
         for (entity, pos) in query.iter_mut() {
             if next_tiles.contains(&pos.pos) {
                 commands.entity(entity).insert(LossCause);
@@ -712,8 +723,8 @@ fn check_loss_condition(
         }
 
         grid_state.loss_condition = LossCondition::Stuck;
+
         next_state.set(GameState::GameOver);
-        // WIP
     }
 }
 
