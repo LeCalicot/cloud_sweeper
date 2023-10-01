@@ -6,6 +6,7 @@ dist/
 
 .vscode/
 
-.xwin-cache/dl/
+.xwin-cache/
 
 *.aup
+    
