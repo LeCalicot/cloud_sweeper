@@ -39,6 +39,8 @@ enum GameState {
     // Here the menu is drawn and waiting for player interaction
     Menu,
     GameOver,
+    // A buffer state to give time to clean all the tiles
+    PreRetry,
 }
 
 pub struct GamePlugin;

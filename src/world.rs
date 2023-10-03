@@ -47,7 +47,7 @@ impl Plugin for WorldPlugin {
     }
 }
 
-fn setup_world(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn setup_world(mut commands: Commands, asset_server: Res<AssetServer>, time: Res<Time>) {
     // commands.spawn_bundle(Camera2dBundle::default());
 
     let texture_handle: Handle<Image> = asset_server.load("textures/tiles.png");

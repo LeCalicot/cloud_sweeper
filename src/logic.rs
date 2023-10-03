@@ -17,6 +17,7 @@ use crate::ui::MessBar;
 use crate::world::{LEVEL_SIZE, STAGE_BL, STAGE_UR, STAGE_WIDTH};
 use crate::GameState;
 use bevy::prelude::*;
+use bevy::time::Stopwatch;
 use bevy_easings::*;
 use bevy_kira_audio::prelude::*;
 // use bevy::render::texture::ImageSettings;
@@ -51,6 +52,7 @@ pub const CLOUD_SCALE_FACTOR_EASING: f32 = 2.;
 // Duration of the easing for the clouds in ms:
 pub const CLOUD_EASING_DURATION: std::time::Duration = std::time::Duration::from_millis(100);
 pub const SPECIAL_TIMEOUT: u8 = 4;
+pub const BUFFER_TIME: f32 = 0.1; // s
 
 pub struct LogicPlugin;
 
@@ -140,6 +142,8 @@ impl Plugin for LogicPlugin {
                     .in_set(LogicSystem::CheckLoss)
                     .after(LogicSystem::FinishEasings),
             )
+            .add_systems(Update, buffer_time.run_if(in_state(GameState::PreRetry)))
+            .add_systems(OnEnter(GameState::PreRetry), start_buffer_time)
             .add_event::<SoundOnMove>()
             .add_event::<SoundOnAction>();
     }
@@ -193,6 +197,11 @@ pub enum LossCondition {
     NoLoss,
     TooMessy,
     Stuck,
+}
+
+#[derive(Default, Resource)]
+pub struct BufferTimer {
+    pub stopwatch: Stopwatch,
 }
 
 #[derive(Component)]
@@ -676,6 +685,8 @@ fn check_loss_condition(
     mut next_state: ResMut<NextState<GameState>>,
     mut query: Query<(Entity, &mut GridPos), With<Cloud>>,
     mut anim_query: Query<&mut Animation, With<Cloud>>,
+    // DEBUG:
+    time: Res<Time>,
 ) {
     let next_tiles = [
         [
@@ -705,6 +716,12 @@ fn check_loss_condition(
         );
         has_lost = is_blocked.into_iter().all(|x| x);
     }
+
+    // DEBUG:
+    if time.elapsed() > Duration::from_millis(4000) {
+        has_lost = true;
+    }
+
     if has_lost {
         // Make sure that all animation are finished before highlighting the loss condition:
         for animation in anim_query.iter_mut() {
@@ -747,6 +764,23 @@ fn count_clouds(grid_state: Res<GridState>, mut query: Query<&mut MessBar>) {
             mess_bar.counter = tmp_counter;
         }
     }
+}
+
+fn buffer_time(
+    time: Res<Time>,
+    mut buffer_timer: ResMut<BufferTimer>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    buffer_timer.stopwatch.tick(time.delta());
+    if buffer_timer.stopwatch.elapsed_secs() > BUFFER_TIME {
+        next_state.set(GameState::Playing);
+    }
+}
+
+fn start_buffer_time(mut commands: Commands) {
+    commands.insert_resource(BufferTimer {
+        stopwatch: Stopwatch::new(),
+    });
 }
 
 fn despawn_clouds(

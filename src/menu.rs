@@ -112,6 +112,7 @@ impl Plugin for MenuPlugin {
                     .run_if(in_state(GameState::GameOver)),
             )
             .add_systems(OnEnter(GameState::Menu), spawn_background);
+
         #[cfg(debug_assertions)]
         {
             app.init_resource::<DebugVariables>()
@@ -194,6 +195,8 @@ fn setup_menu(
         .insert(MainMenu);
 }
 
+
+
 #[allow(clippy::type_complexity)]
 fn change_button_color_on_hover(
     button_colors: Res<ButtonColors>,
@@ -233,8 +236,6 @@ fn debug_start_auto(
     mut next_state: ResMut<NextState<GameState>>,
     mut debug_var: ResMut<DebugVariables>,
 ) {
-    use colored::Colorize;
-
     if time.elapsed() > Duration::from_millis(AUTOSTART_TIME_MS) && !debug_var.has_playing {
         debug_var.has_playing = true;
         next_state.set(GameState::Playing);
@@ -274,13 +275,6 @@ fn setup_game_over_screen(
                 right: Val::Percent(50.),
                 top: Val::Percent(5.),
                 bottom: Val::Auto,
-
-                // margin: UiRect {
-                //     left: Val::Px(50.),
-                //     right: Val::Px(50.),
-                //     top: Val::Auto,
-                //     bottom: Val::Auto,
-                // },
                 justify_content: JustifyContent::Center,
                 ..default()
             },
@@ -474,7 +468,7 @@ fn game_over_screen_interactions(
 ) {
     for (interaction,) in &mut retry_query {
         if let Interaction::Pressed = *interaction {
-            next_state.set(GameState::Playing)
+            next_state.set(GameState::PreRetry)
         }
     }
     for (interaction,) in &mut quit_query {
