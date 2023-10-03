@@ -685,8 +685,7 @@ fn check_loss_condition(
     mut next_state: ResMut<NextState<GameState>>,
     mut query: Query<(Entity, &mut GridPos), With<Cloud>>,
     mut anim_query: Query<&mut Animation, With<Cloud>>,
-    // DEBUG:
-    time: Res<Time>,
+    // time: Res<Time>,
 ) {
     let next_tiles = [
         [
@@ -717,10 +716,9 @@ fn check_loss_condition(
         has_lost = is_blocked.into_iter().all(|x| x);
     }
 
-    // DEBUG:
-    if time.elapsed() > Duration::from_millis(4000) {
-        has_lost = true;
-    }
+    // if time.elapsed() > Duration::from_millis(4000) {
+    //     has_lost = true;
+    // }
 
     if has_lost {
         // Make sure that all animation are finished before highlighting the loss condition:

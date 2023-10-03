@@ -317,7 +317,7 @@ pub fn pop_player_buffer(
 
         if player_action != GameControl::Idle {
             player_control.sound_counter += 1;
-            player_control.sound_counter %= 3;
+            player_control.sound_counter %= 4;
             match push_state {
                 PushState::Empty => {
                     player_control.player_pos = player_new_pos;

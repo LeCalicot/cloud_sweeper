@@ -375,9 +375,8 @@ fn setup_game_over_screen(
 //// - Make sure that the previous easing (for cloud move) is finished
 //// - Remove the mess bar properly before a retry
 //// - let the move_cloud system finish (just don't update the grid!)
-// - Add a pause at the beginning of GameOver state
-// - bug with resetting the tiles
-// - remove background when restarting (now there are 2 entities)
+//// - bug with resetting the tiles
+//// - remove background when restarting (now there are 2 entities)
 // - In the gameover menu, quit=return to main menu, retry=replay instantly
 // - use the new version of the package for the bevy_ecs_tilemap
 // Add Splashscreen
