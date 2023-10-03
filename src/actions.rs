@@ -36,12 +36,6 @@ fn set_movement_actions(mut actions: ResMut<Actions>, keyboard_input: Res<Input<
             actions.next_action = input;
         }
     };
-    if received_input != GameControl::Idle {
-        println!("{} {} {:?}", { "➤".blue() }, { "ZZZ:".green() }, {
-            received_input
-        });
-        debug!("new input: {received_input:?}");
-    }
 }
 
 ///Enum for the direction. Idle has been added to be able to use an array buffer

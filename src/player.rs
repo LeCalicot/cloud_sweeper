@@ -35,6 +35,7 @@ pub struct PlayerControl {
     pub input_timer: Timer,
     pub special_timeout: u8,
     pub animation: AnimationState,
+    pub sound_counter: u8,
 }
 
 #[derive(Component, Default)]
@@ -315,6 +316,8 @@ pub fn pop_player_buffer(
         let player_old_pos = player_control.player_pos;
 
         if player_action != GameControl::Idle {
+            player_control.sound_counter += 1;
+            player_control.sound_counter %= 3;
             match push_state {
                 PushState::Empty => {
                     player_control.player_pos = player_new_pos;
@@ -323,7 +326,9 @@ pub fn pop_player_buffer(
                         TileOccupation::Empty;
                     grid_state.grid[player_new_pos[0] as usize][player_new_pos[1] as usize] =
                         TileOccupation::Player;
-                    play_move_sound_event.send_default();
+                    if player_control.sound_counter == 0 {
+                        play_move_sound_event.send_default();
+                    }
                 }
                 PushState::Blocked => {}
                 PushState::CanPush => {

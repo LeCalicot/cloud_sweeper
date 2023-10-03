@@ -87,14 +87,11 @@ fn play_music(audio_assets: Res<AudioAssets>, audio: Res<Audio>, mut commands: C
 
 fn play_sound_on_move(
     mut play_sound_events: EventReader<SoundOnMove>,
-    // audio: Res<Audio>,
-    // audio_assets: Res<AudioAssets>,
+    audio: Res<Audio>,
+    audio_assets: Res<AudioAssets>,
 ) {
     for _ in play_sound_events.iter() {
-        // println!("{} {} {:?}", { "➤".blue() }, { "AAA:".blue() }, {
-        //     "move"
-        // });
-        // audio.play(audio_assets.sample_1_c.clone());
+        audio.play(audio_assets.sample_1_c.clone());
     }
 }
 

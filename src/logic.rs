@@ -708,9 +708,6 @@ fn check_loss_condition(
     if has_lost {
         // Make sure that all animation are finished before highlighting the loss condition:
         for animation in anim_query.iter_mut() {
-            println!("{} {} {:?}", { "➤➤➤" }, { "AAA:" }, {
-                animation.state
-            });
             match animation.state {
                 AnimationState::Move => return,
                 AnimationState::End | AnimationState::Init => (),
@@ -1538,6 +1535,7 @@ fn set_up_logic(mut commands: Commands, audio_assets: Res<AudioAssets>) {
         special_control: 0,
         special_timeout: 0,
         animation: AnimationState::Init,
+        sound_counter: 0,
     });
     commands.insert_resource(GridState::default());
     commands.insert_resource(MainClock {

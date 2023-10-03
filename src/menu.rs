@@ -250,12 +250,6 @@ fn debug_auto_loss(
     use colored::Colorize;
 
     if time.elapsed() > Duration::from_millis(5 * AUTOSTART_TIME_MS) && !debug_var.has_game_over {
-        println!(
-            "{} {} {:?}",
-            { colored::Colorize::blue("➤") },
-            { "CCC:".blue() },
-            { "Automatic game over" }
-        );
         debug_var.has_game_over = true;
         next_state.set(GameState::GameOver);
     }
@@ -385,12 +379,16 @@ fn setup_game_over_screen(
 //// - create a single system for all the buttons to change color when hovered
 //// - after retrying, the mess tile highlight becomes out of sync
 //// - Make sure that the previous easing (for cloud move) is finished
-// - Remove the mess bar properly before a retry
-// - let the move_cloud system finish (just don't update the grid!)
+//// - Remove the mess bar properly before a retry
+//// - let the move_cloud system finish (just don't update the grid!)
 // - Add a pause at the beginning of GameOver state
+// - bug with resetting the tiles
 // - remove background when restarting (now there are 2 entities)
 // - In the gameover menu, quit=return to main menu, retry=replay instantly
 // - use the new version of the package for the bevy_ecs_tilemap
+// Add Splashscreen
+// Add credits
+// Add graphics
 
 fn highlight_blocked_loss_condition(
     mut commands: Commands,
@@ -497,7 +495,7 @@ fn game_over_clear(audio: Res<Audio>) {
 #[allow(clippy::type_complexity)]
 fn exit_game_over_menu(
     mut commands: Commands,
-    mut query: Query<Entity, Or<(With<Cloud>, With<Player>, With<GameOver>)>>,
+    mut query: Query<Entity, Or<(With<Cloud>, With<Player>, With<GameOver>, With<MessBar>)>>,
     mut tile_storage_query: Query<(&mut TileStorage, Entity), With<TileStorage>>,
     mut tile_query: Query<&mut TilePos, With<AllTiles>>,
 ) {
