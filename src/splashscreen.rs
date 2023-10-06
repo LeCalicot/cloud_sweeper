@@ -14,7 +14,7 @@ pub struct SplashscreenPlugin;
 impl Plugin for SplashscreenPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(
-            SplashPlugin::new(GameState::SplashScreen, GameState::Menu)
+            SplashPlugin::new(GameState::SplashScreen, GameState::Loading)
                 .skipable()
                 .add_screen(SplashScreen {
                     brands: vec![

@@ -35,8 +35,8 @@ use splashscreen::SplashscreenPlugin;
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 enum GameState {
     // During the loading State the LoadingPlugin will load our assets
-    #[default]
     Loading,
+    #[default]
     SplashScreen,
     // During this State the actual game logic is executed
     Playing,
