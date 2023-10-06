@@ -17,7 +17,7 @@ use bevy_ecs_tilemap::tiles::{TileBundle, TilePos, TileStorage, TileVisible};
 use bevy_kira_audio::prelude::*;
 use bevy_kira_audio::{Audio, AudioEasing, AudioTween};
 // use {AlignItems, BackgroundColor, JustifyContent, UiRect};
-use crate::world::{AllTiles, Platform, Sky, CAMERA_LAYER, DISPLAY_RATIO, LEVEL_SIZE};
+use crate::world::{AllTiles, Platform, Sky, DISPLAY_RATIO, LEVEL_SIZE};
 use std::time::Duration;
 
 #[cfg(debug_assertions)]
@@ -115,8 +115,8 @@ impl Plugin for MenuPlugin {
 
         #[cfg(debug_assertions)]
         {
-            app.init_resource::<DebugVariables>()
-                .add_systems(Update, debug_start_auto.run_if(in_state(GameState::Menu)));
+            app.init_resource::<DebugVariables>();
+            // .add_systems(Update, debug_start_auto.run_if(in_state(GameState::Menu)));
             // .add_system(debug_auto_loss.run_if(in_state(GameState::Playing)));
 
             // /.add_plugin(FrameTimeDiagnosticsPlugin::default())
@@ -138,18 +138,18 @@ fn setup_menu(
     mut commands: Commands,
     font_assets: Res<FontAssets>,
     // button_colors: Res<ButtonColors>,
-    query: Query<Entity, With<Camera2d>>,
+    // query: Query<Entity, With<Camera2d>>,
     asset_server: Res<AssetServer>,
 ) {
-    if query.into_iter().count() == 0 {
-        commands.spawn(Camera2dBundle::default()).insert(
-            Transform::from_xyz(0., 0., CAMERA_LAYER).with_scale(Vec3::new(
-                DISPLAY_RATIO,
-                DISPLAY_RATIO,
-                1.,
-            )),
-        );
-    }
+    // if query.into_iter().count() == 0 {
+    //     commands.spawn(Camera2dBundle::default()).insert(
+    //         Transform::from_xyz(0., 0., CAMERA_LAYER).with_scale(Vec3::new(
+    //             DISPLAY_RATIO,
+    //             DISPLAY_RATIO,
+    //             1.,
+    //         )),
+    //     );
+    // }
     commands
         .spawn(ButtonBundle {
             style: Style {
@@ -194,8 +194,6 @@ fn setup_menu(
         })
         .insert(MainMenu);
 }
-
-
 
 #[allow(clippy::type_complexity)]
 fn change_button_color_on_hover(

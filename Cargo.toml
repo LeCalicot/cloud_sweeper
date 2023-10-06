@@ -37,6 +37,7 @@ bevy = { version = "0.11", default-features = false, features = [
 ] }
 bevy_kira_audio = { version = "0.17", features = ["wav", "settings_loader"] }
 rand = "0.8.5"
+bevy_splash_screen = "0.4.4"
 
 # keep the following in sync with Bevy's dependencies
 winit = { version = "0.28", default-features = false }
@@ -46,7 +47,11 @@ bevy_ecs_tilemap = { git = "https://github.com/StarArawn/bevy_ecs_tilemap.git", 
 # bevy_ecs_tilemap = { git = "https://github.com/StarArawn/bevy_ecs_tilemap.git", rev = "55c15bfa43c7a9e2adef6b70007e92d699377454" }
 colored = "2.0.0"
 bevy_easings = "0.11.0"
+bevy-inspector-egui = "0.19"
+bevy_tweening = "0.8"
 
+[patch.crates-io]
+bevy_tweening = { git = "https://github.com/SergioRibera/bevy_tweening", branch = "infinite_mirrored" }
 [build-dependencies]
 embed-resource = "2.1"
 

@@ -7,6 +7,7 @@ use bevy::prelude::*;
 use bevy::window::{PresentMode, PrimaryWindow, WindowResolution};
 use bevy::winit::WinitWindows;
 use bevy::DefaultPlugins;
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy::{
     prelude::*,
     window::{Window, WindowPlugin},
@@ -18,7 +19,7 @@ use winit::window::{Icon, WindowId};
 
 pub const TILE_SIZE: f32 = 16.;
 pub const DISPLAY_RATIO: f32 = 1. / 4.;
-
+pub const CAMERA_LAYER: f32 = 500.;
 // Add moving background
 
 fn main() {
@@ -46,6 +47,7 @@ fn main() {
         .add_plugins(EasingsPlugin)
         .insert_resource(ClearColor(Color::rgb(0., 0., 0.)))
         .add_plugins(GamePlugin)
+        .add_systems(Startup, spawn_cam)
         .add_systems(Startup, set_window_icon)
         .run();
 }
@@ -70,5 +72,17 @@ fn set_window_icon(
         let icon = Icon::from_rgba(rgba, width, height).unwrap();
 
         primary.set_window_icon(Some(icon));
+    }
+}
+
+fn spawn_cam(mut cmd: Commands, query: Query<Entity, With<Camera2d>>) {
+    if query.into_iter().count() == 0 {
+        cmd.spawn(Camera2dBundle::default()).insert(
+            Transform::from_xyz(0., 0., CAMERA_LAYER).with_scale(Vec3::new(
+                DISPLAY_RATIO,
+                DISPLAY_RATIO,
+                1.,
+            )),
+        );
     }
 }
