@@ -95,7 +95,12 @@ impl Plugin for MenuPlugin {
             .add_systems(OnExit(GameState::Menu), despawn_screen::<MainMenu>)
             .add_systems(
                 Update,
-                (click_play_button, close_on_esc).run_if(in_state(GameState::Menu)),
+                (click_play_button).run_if(in_state(GameState::Menu)),
+            )
+            .add_systems(
+                Update,
+                (close_on_esc)
+                    .run_if(in_state(GameState::Menu).or_else(in_state(GameState::Playing))),
             )
             .add_systems(
                 OnEnter(GameState::GameOver),
