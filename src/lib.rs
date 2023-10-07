@@ -7,6 +7,7 @@ mod loading;
 mod logic;
 mod menu;
 mod player;
+mod splashscreen;
 mod ui;
 mod world;
 
@@ -24,6 +25,8 @@ use bevy::app::App;
 #[cfg(debug_assertions)]
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::*;
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use splashscreen::SplashscreenPlugin;
 // use bevy_prototype_debug_lines::DebugLinesPlugin;
 
 // This example game uses States to separate logic
@@ -32,8 +35,9 @@ use bevy::prelude::*;
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 enum GameState {
     // During the loading State the LoadingPlugin will load our assets
-    #[default]
     Loading,
+    #[default]
+    SplashScreen,
     // During this State the actual game logic is executed
     Playing,
     // Here the menu is drawn and waiting for player interaction
@@ -49,6 +53,7 @@ impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.add_state::<GameState>()
             // .add_plugin(DebugLinesPlugin::default())
+            .add_plugins(SplashscreenPlugin)
             .add_plugins(LoadingPlugin)
             .add_plugins(MenuPlugin)
             .add_plugins(WorldPlugin)
@@ -56,6 +61,7 @@ impl Plugin for GamePlugin {
             .add_plugins(InternalAudioPlugin)
             .add_plugins(PlayerPlugin)
             .add_plugins(UiPlugin)
+            // .add_plugins(WorldInspectorPlugin::new())
             .add_plugins(LogicPlugin);
         #[cfg(debug_assertions)]
         {
